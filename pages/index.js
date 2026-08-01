@@ -115,7 +115,9 @@ export default function SinyalPage() {
               <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {s.willSkip ? (
-                  <span className="badge badge-warning">skip &middot; slot penuh</span>
+                  <span className="badge badge-warning">
+                    {s.isActionable ? 'skip · slot penuh' : 'sudah berjalan'}
+                  </span>
                 ) : (
                   <span className="badge">skor {s.score.toFixed(2)}</span>
                 )}
