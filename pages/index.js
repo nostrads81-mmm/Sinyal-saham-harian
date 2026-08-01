@@ -36,7 +36,6 @@ export default function SinyalPage() {
   const [fillLot, setFillLot] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
-  const [showRunning, setShowRunning] = useState(false);
   const savingRef = useRef(false);
 
   useEffect(() => {
@@ -135,7 +134,6 @@ export default function SinyalPage() {
 
   const openSlots = settings ? Math.max(settings.maxSlots - heldCount, 0) : null;
   const mainSignals = signals.filter((s) => s.isActionable);
-  const runningSignals = signals.filter((s) => !s.isActionable);
 
   function renderCard(s) {
     const pos = settings ? positionSize(s.entry, s.sl, settings.capital, settings.riskPercent) : null;
@@ -145,9 +143,7 @@ export default function SinyalPage() {
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {s.willSkip ? (
-              <span className="badge badge-warning">
-                {s.isActionable ? 'skip · slot penuh' : 'sudah berjalan'}
-              </span>
+              <span className="badge badge-warning">skip · slot penuh</span>
             ) : (
               <span className="badge">skor {s.score.toFixed(2)}</span>
             )}
@@ -246,19 +242,6 @@ export default function SinyalPage() {
       )}
 
       {mainSignals.map(renderCard)}
-
-      {runningSignals.length > 0 && (
-        <>
-          <button
-            className="btn"
-            style={{ width: '100%', marginTop: 4 }}
-            onClick={() => setShowRunning((v) => !v)}
-          >
-            {showRunning ? 'Sembunyikan' : 'Lihat'} sinyal yang sudah berjalan ({runningSignals.length})
-          </button>
-          {showRunning && <div style={{ marginTop: 8 }}>{runningSignals.map(renderCard)}</div>}
-        </>
-      )}
 
       <button className="btn" style={{ marginTop: 16, width: '100%' }} onClick={signOut}>
         Keluar
