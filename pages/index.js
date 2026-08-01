@@ -70,19 +70,6 @@ export default function SinyalPage() {
         setSettings(settingsData);
         setHeldCount(held);
         const parsed = parseWatchlistRows(rawRows, { tradeType: 'DAY TRADE' });
-        // eslint-disable-next-line no-console
-        console.log('[debug] WATCHLIST_RANGE:', WATCHLIST_RANGE, 'total rows fetched:', rawRows.length);
-        // eslint-disable-next-line no-console
-        console.log('[debug] rawRows[0] (harusnya ESIP):', JSON.stringify(rawRows[0]));
-        // eslint-disable-next-line no-console
-        console.log('[debug] rawRows[1] (harusnya PGEO):', JSON.stringify(rawRows[1]));
-        // eslint-disable-next-line no-console
-        console.log('[debug] rawRows[2] (harusnya OASA):', JSON.stringify(rawRows[2]));
-        // eslint-disable-next-line no-console
-        console.table(parsed.map((p) => ({
-          stock: p.stock, status: p.status, isOpen: p.isOpen,
-          isFreshRunning: p.isFreshRunning, isActionable: p.isActionable,
-        })));
         const openSlots = Math.max(settingsData.maxSlots - held, 0);
         setSignals(rankSignals(parsed, { openSlots }));
       } catch (e) {
