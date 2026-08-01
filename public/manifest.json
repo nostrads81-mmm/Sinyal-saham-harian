@@ -1,0 +1,12 @@
+{
+  "name": "Sinyal Saham Harian",
+  "short_name": "Sinyal Saham",
+  "description": "Ranking sinyal day-trade harian, tracking portofolio & rekapan trading.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0f14",
+  "theme_color": "#111318",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "192x192 512x512", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

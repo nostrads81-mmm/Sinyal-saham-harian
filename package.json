@@ -1,0 +1,28 @@
+{
+  "name": "saham-claude",
+  "version": "1.0.0",
+  "description": "Aplikasi PWA personal untuk memantau sinyal day-trade saham & rekapan portofolio.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nostrads81-mmm/Sinyal-saham-harian.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nostrads81-mmm/Sinyal-saham-harian/issues"
+  },
+  "homepage": "https://github.com/nostrads81-mmm/Sinyal-saham-harian#readme",
+  "dependencies": {
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}
