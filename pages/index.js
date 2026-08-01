@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
   getValues, appendValues, ensureSheetsInitialized, getSettings, getActiveJournalCount,
@@ -36,6 +36,7 @@ export default function SinyalPage() {
   const [fillLot, setFillLot] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -92,6 +93,8 @@ export default function SinyalPage() {
   }
 
   async function submitRecord(s) {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setSaveError(null);
     try {
@@ -105,6 +108,7 @@ export default function SinyalPage() {
     } catch (e) {
       setSaveError(e.message);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
