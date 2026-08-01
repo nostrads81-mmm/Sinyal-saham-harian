@@ -70,6 +70,13 @@ export default function SinyalPage() {
         setSettings(settingsData);
         setHeldCount(held);
         const parsed = parseWatchlistRows(rawRows, { tradeType: 'DAY TRADE' });
+        // eslint-disable-next-line no-console
+        console.log('[debug] raw rows PGEO:', rawRows.filter((r) => r[1] === 'PGEO'));
+        // eslint-disable-next-line no-console
+        console.table(parsed.map((p) => ({
+          stock: p.stock, status: p.status, isOpen: p.isOpen,
+          isFreshRunning: p.isFreshRunning, isActionable: p.isActionable,
+        })));
         const openSlots = Math.max(settingsData.maxSlots - held, 0);
         setSignals(rankSignals(parsed, { openSlots }));
       } catch (e) {
