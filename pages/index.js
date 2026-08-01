@@ -170,7 +170,10 @@ export default function SinyalPage() {
                 <td className="value">{s.entry.toLocaleString('id-ID')}</td>
                 <td className="value" style={{ color: '#ff6b6b' }}>{s.sl?.toLocaleString('id-ID')}</td>
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</td>
-                <td className="value" style={{ textAlign: 'right' }}>{pos ? formatRupiah(pos.rupiah) : '-'}</td>
+                <td className="value" style={{ textAlign: 'right' }}>
+                  {pos ? formatRupiah(pos.rupiah) : '-'}
+                  {pos && <div className="muted" style={{ fontWeight: 400 }}>{Math.round(pos.lembar / 100)} lot</div>}
+                </td>
               </tr>
             </tbody>
           </table>
