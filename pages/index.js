@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
-  getValues, ensureSheetsInitialized, getSettings, getActiveJournalCount,
-  WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
+  getValues, appendValues, ensureSheetsInitialized, getSettings, getActiveJournalCount,
+  APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, positionSize } from '../lib/scoring';
 
 function formatRupiah(n) {
   return 'Rp' + Math.round(n).toLocaleString('id-ID');
+}
+
+function todayDDMMYYYY() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
 
 function buildAiPrompt(signals) {
@@ -24,6 +30,12 @@ export default function SinyalPage() {
   const [signals, setSignals] = useState([]);
   const [settings, setSettings] = useState(null);
   const [heldCount, setHeldCount] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [recordingStock, setRecordingStock] = useState(null);
+  const [fillPrice, setFillPrice] = useState('');
+  const [fillLot, setFillLot] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -65,7 +77,37 @@ export default function SinyalPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [token]);
+  }, [token, refreshKey]);
+
+  function openRecordForm(s, pos) {
+    setRecordingStock(s.stock);
+    setFillPrice(String(s.entry));
+    setFillLot(pos ? String(Math.round(pos.lembar / 100)) : '');
+    setSaveError(null);
+  }
+
+  function closeRecordForm() {
+    setRecordingStock(null);
+    setSaveError(null);
+  }
+
+  async function submitRecord(s) {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const row = [
+        todayDDMMYYYY(), s.stock, Number(fillPrice) || s.entry, s.sl, s.tp1, s.tp2 || '',
+        'RUNNING', '', '', `Lot: ${fillLot || '-'}`,
+      ];
+      await appendValues(APP_DATA_SHEET_ID, 'DayTrade_Journal!A:J', [row], token);
+      setRecordingStock(null);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function copyAll() {
     const shown = signals.filter((s) => !s.willSkip);
@@ -148,6 +190,49 @@ export default function SinyalPage() {
                   </tr>
                 </tbody>
               </table>
+            )}
+
+            {!s.willSkip && recordingStock !== s.stock && (
+              <button
+                className="btn"
+                style={{ marginTop: 8, width: '100%' }}
+                onClick={() => openRecordForm(s, pos)}
+              >
+                Sudah beli, catat ke jurnal
+              </button>
+            )}
+
+            {recordingStock === s.stock && (
+              <div style={{ marginTop: 8, borderTop: '1px solid #262832', paddingTop: 8 }}>
+                <p className="muted" style={{ marginBottom: 4 }}>Harga beli aktual</p>
+                <input
+                  type="number"
+                  value={fillPrice}
+                  onChange={(e) => setFillPrice(e.target.value)}
+                  style={{ marginBottom: 8 }}
+                />
+                <p className="muted" style={{ marginBottom: 4 }}>Jumlah (lot)</p>
+                <input
+                  type="number"
+                  value={fillLot}
+                  onChange={(e) => setFillLot(e.target.value)}
+                  style={{ marginBottom: 8 }}
+                />
+                {saveError && <p className="muted" style={{ color: '#ff6b6b' }}>{saveError}</p>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn" style={{ flex: 1 }} onClick={closeRecordForm} disabled={saving}>
+                    Batal
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1 }}
+                    onClick={() => submitRecord(s)}
+                    disabled={saving}
+                  >
+                    {saving ? 'Menyimpan...' : 'Simpan'}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         );
