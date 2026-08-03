@@ -4,7 +4,7 @@ import {
   getValues, appendValues, ensureSheetsInitialized, getSettings, getActiveJournalCount,
   APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
-import { parseWatchlistRows, rankSignals, positionSize, buildWaSignal, mergeSignalSources } from '../lib/scoring';
+import { parseWatchlistRows, rankSignals, sortRunningSignals, positionSize, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
 
 function formatRupiah(n) {
@@ -38,6 +38,7 @@ export default function SinyalPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [signals, setSignals] = useState([]);
+  const [runningSignals, setRunningSignals] = useState([]);
   const [settings, setSettings] = useState(null);
   const [heldCount, setHeldCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -92,6 +93,7 @@ export default function SinyalPage() {
 
         const openSlots = Math.max(settingsData.maxSlots - held, 0);
         setSignals(rankSignals(combined, { openSlots }));
+        setRunningSignals(sortRunningSignals(parsed));
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -134,10 +136,7 @@ export default function SinyalPage() {
     }
   }
 
-  async function handleWaFileSelected(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function processWaImage(file) {
     setWaExtracting(true);
     setWaExtractError(null);
     try {
@@ -157,6 +156,26 @@ export default function SinyalPage() {
       setWaExtracting(false);
     }
   }
+
+  function handleWaFileSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) processWaImage(file);
+  }
+
+  // Ctrl+V anywhere on the Sinyal tab pastes a screenshot straight in,
+  // no need to save the file first. Only active when not already busy/reviewing.
+  useEffect(() => {
+    if (!token || waReview !== null) return;
+    function onPaste(e) {
+      const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+      if (!item) return;
+      const file = item.getAsFile();
+      if (file) processWaImage(file);
+    }
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [token, waReview]);
 
   function updateWaReviewField(index, field, value) {
     setWaReview((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
@@ -208,7 +227,7 @@ export default function SinyalPage() {
   function renderCard(s) {
     const pos = settings ? positionSize(s.entry, s.sl, settings.capital, settings.riskPercent) : null;
     return (
-      <div key={s.stock + s.rank} className={`card ${s.willSkip ? 'skip-card' : ''}`}>
+      <div key={s.stock + s.status} className={`card ${s.willSkip ? 'skip-card' : ''}`}>
         <div className="card-row">
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -226,7 +245,9 @@ export default function SinyalPage() {
           </div>
         </div>
         <p className="muted" style={{ marginTop: 2 }}>
-          {s.status}{s.ageDays !== null ? ` · ${s.ageDays === 0 ? 'baru hari ini' : `sejak ${s.ageDays} hari`}` : ''}
+          {s.status}
+          {s.isRunning && s.highestTpReached > 0 ? ` (TP${s.highestTpReached} sudah tercapai)` : ''}
+          {s.ageDays !== null ? ` · ${s.ageDays === 0 ? 'baru hari ini' : `sejak ${s.ageDays} hari`}` : ''}
         </p>
         {s.waitFor && (
           <p className="muted">Tunggu turun ke {s.waitFor} sebelum entry</p>
@@ -234,26 +255,31 @@ export default function SinyalPage() {
         {s.estimatedEntry && (
           <p className="muted">Entry estimasi (tengah range) - cek harga live sebelum eksekusi</p>
         )}
-        {!s.willSkip && (
+        {(s.isRunning || !s.willSkip) && (
           <table className="data-table">
             <tbody>
               <tr>
-                <td>Entry</td><td>SL</td><td>TP1</td><td style={{ textAlign: 'right' }}>Posisi</td>
+                <td>Entry</td><td>SL</td><td>TP1</td><td>TP2</td><td>TP3</td>
+                {!s.isRunning && <td style={{ textAlign: 'right' }}>Posisi</td>}
               </tr>
               <tr>
                 <td className="value">{s.entry.toLocaleString('id-ID')}</td>
                 <td className="value" style={{ color: '#ff6b6b' }}>{s.sl?.toLocaleString('id-ID')}</td>
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</td>
-                <td className="value" style={{ textAlign: 'right' }}>
-                  {pos ? formatRupiah(pos.rupiah) : '-'}
-                  {pos && <div className="muted" style={{ fontWeight: 400 }}>{Math.round(pos.lembar / 100)} lot</div>}
-                </td>
+                <td className="value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</td>
+                <td className="value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</td>
+                {!s.isRunning && (
+                  <td className="value" style={{ textAlign: 'right' }}>
+                    {pos ? formatRupiah(pos.rupiah) : '-'}
+                    {pos && <div className="muted" style={{ fontWeight: 400 }}>{Math.round(pos.lembar / 100)} lot</div>}
+                  </td>
+                )}
               </tr>
             </tbody>
           </table>
         )}
 
-        {!s.willSkip && recordingStock !== s.stock && (
+        {!s.isRunning && !s.willSkip && recordingStock !== s.stock && (
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button className="btn" style={{ flex: 1 }} onClick={() => openRecordForm(s, pos)}>
               Sudah beli, catat ke jurnal
@@ -378,7 +404,12 @@ export default function SinyalPage() {
             {settings ? `Sisa slot: ${openSlots} dari ${settings.maxSlots}` : '...'}
           </p>
         </div>
-        <button className="btn" onClick={copyAll}>Copy semua</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn" onClick={() => setRefreshKey((k) => k + 1)} disabled={loading} aria-label="Refresh">
+            &#8635;
+          </button>
+          <button className="btn" onClick={copyAll}>Copy semua</button>
+        </div>
       </div>
 
       <input
@@ -396,6 +427,9 @@ export default function SinyalPage() {
       >
         {waExtracting ? 'Membaca screenshot WA...' : 'Upload sinyal dari WA'}
       </button>
+      <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>
+        atau tempel (Ctrl+V) screenshot langsung di halaman ini
+      </p>
       {waExtractError && <p className="muted" style={{ color: '#ff6b6b' }}>{waExtractError}</p>}
 
       {loading && <p className="muted">Memuat sinyal...</p>}
@@ -406,6 +440,15 @@ export default function SinyalPage() {
       )}
 
       {mainSignals.map(renderCard)}
+
+      {runningSignals.length > 0 && (
+        <>
+          <p className="muted" style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>
+            Sedang berjalan ({runningSignals.length})
+          </p>
+          {runningSignals.map(renderCard)}
+        </>
+      )}
 
       <button className="btn" style={{ marginTop: 16, width: '100%' }} onClick={signOut}>
         Keluar

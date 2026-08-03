@@ -161,6 +161,11 @@ export default function RekapanPage() {
               Entry {e.entry?.toLocaleString('id-ID')} &middot; {e.tanggalEntry}
               {e.tanggalExit ? ` → exit ${e.tanggalExit}` : ''}
             </p>
+            <p className="muted" style={{ marginTop: 2 }}>
+              SL <span style={{ color: '#ff6b6b' }}>{e.sl?.toLocaleString('id-ID') || '-'}</span>
+              {' · '}TP1 <span style={{ color: '#4fd07e' }}>{e.tp1?.toLocaleString('id-ID') || '-'}</span>
+              {e.tp2 ? <> {' · '}TP2 <span style={{ color: '#4fd07e' }}>{e.tp2.toLocaleString('id-ID')}</span></> : null}
+            </p>
 
             {isRunning && closingRow !== e.rowNumber && (
               <button className="btn" style={{ marginTop: 8, width: '100%' }} onClick={() => openCloseForm(e)}>

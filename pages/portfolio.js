@@ -71,10 +71,7 @@ export default function PortfolioPage() {
     return () => { cancelled = true; };
   }, [token, refreshKey]);
 
-  async function handleFileSelected(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function processPortfolioImage(file) {
     setExtracting(true);
     setExtractError(null);
     try {
@@ -93,6 +90,24 @@ export default function PortfolioPage() {
       setExtracting(false);
     }
   }
+
+  function handleFileSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) processPortfolioImage(file);
+  }
+
+  useEffect(() => {
+    if (!token || review !== null) return;
+    function onPaste(e) {
+      const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+      if (!item) return;
+      const file = item.getAsFile();
+      if (file) processPortfolioImage(file);
+    }
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [token, review]);
 
   function updateReviewField(index, field, value) {
     setReview((prev) => prev.map((h, i) => (i === index ? { ...h, [field]: value } : h)));
@@ -236,6 +251,9 @@ export default function PortfolioPage() {
       >
         {extracting ? 'Membaca gambar...' : 'Upload screenshot'}
       </button>
+      <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>
+        atau tempel (Ctrl+V) screenshot langsung di halaman ini
+      </p>
       {extractError && <p className="muted" style={{ color: '#ff6b6b' }}>{extractError}</p>}
 
       {loading && <p className="muted">Memuat portofolio...</p>}
