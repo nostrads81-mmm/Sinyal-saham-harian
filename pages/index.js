@@ -423,20 +423,17 @@ export default function SinyalPage() {
         </div>
       </div>
 
-      <p className="muted" style={{ marginBottom: 4 }}>
-        {waExtracting ? 'Membaca screenshot WA...' : 'Tambah sinyal dari WA — di PC: Ctrl+V di mana saja. Di HP: screenshot dulu, lalu tap kotak di bawah & tahan sampai muncul opsi "Tempel":'}
-      </p>
       <div
         ref={waPasteZoneRef}
         contentEditable
         suppressContentEditableWarning
         onPaste={handleWaPasteZone}
         style={{
-          border: '1px dashed #33353f', borderRadius: 8, padding: 12, marginBottom: 12,
-          color: '#7a7d87', fontSize: 13, outline: 'none', minHeight: 20,
+          background: '#fff', border: '1px solid #33353f', borderRadius: 8, padding: 14, marginBottom: 12,
+          color: '#333', fontSize: 14, outline: 'none', minHeight: 20, textAlign: 'center',
         }}
       >
-        Tap di sini, lalu tempel screenshot
+        {waExtracting ? 'Membaca screenshot WA...' : 'Tambah sinyal dari WA'}
       </div>
       {waExtractError && <p className="muted" style={{ color: '#ff6b6b' }}>{waExtractError}</p>}
 

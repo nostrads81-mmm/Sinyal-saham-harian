@@ -1,45 +1,6 @@
 // Server-side only: this is the one place GEMINI_API_KEY is used, so it
 // never reaches the browser bundle.
 
-const PORTFOLIO_SCHEMA = {
-  type: 'object',
-  properties: {
-    account: {
-      type: 'object',
-      properties: {
-        cash: { type: 'number' },
-        invested: { type: 'number' },
-        totalEquity: { type: 'number' },
-      },
-    },
-    holdings: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          symbol: { type: 'string' },
-          avgPrice: { type: 'number' },
-          qtyLot: { type: 'number' },
-          currentPrice: { type: 'number' },
-          confidence: { type: 'string', enum: ['high', 'low'] },
-        },
-        required: ['symbol', 'avgPrice', 'qtyLot', 'currentPrice', 'confidence'],
-      },
-    },
-  },
-  required: ['holdings'],
-};
-
-const PORTFOLIO_PROMPT = `Ini screenshot portofolio saham dari aplikasi Stockbit. Baca tiap baris saham dan ekstrak:
-- symbol (kode saham)
-- avgPrice (kolom "Avg Price")
-- qtyLot (kolom "Qty", ini satuan LOT bukan lembar)
-- currentPrice (kolom "Current Price")
-- confidence: "low" kalau kamu kurang yakin membaca salah satu angka di baris itu (blur, terpotong, dsb), selain itu "high"
-
-Kalau ada ringkasan akun (Trading Balance/cash, Invested, Total Equity) di layar, isi juga field account. Kalau tidak ada, boleh dikosongkan.
-Jangan mengarang angka - kalau benar-benar tidak terbaca, tetap isi field-nya dengan estimasi terbaikmu tapi tandai confidence "low".`;
-
 const WA_SIGNAL_SCHEMA = {
   type: 'object',
   properties: {
@@ -95,14 +56,11 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { image, mimeType, type } = req.body || {};
+  const { image, mimeType } = req.body || {};
   if (!image || !mimeType) {
     res.status(400).json({ error: 'image dan mimeType wajib dikirim' });
     return;
   }
-
-  const prompt = type === 'wa_signal' ? WA_SIGNAL_PROMPT : PORTFOLIO_PROMPT;
-  const schema = type === 'wa_signal' ? WA_SIGNAL_SCHEMA : PORTFOLIO_SCHEMA;
 
   try {
     const geminiRes = await fetch(
@@ -113,13 +71,13 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [
-              { text: prompt },
+              { text: WA_SIGNAL_PROMPT },
               { inline_data: { mime_type: mimeType, data: image } },
             ],
           }],
           generationConfig: {
             responseMimeType: 'application/json',
-            responseSchema: schema,
+            responseSchema: WA_SIGNAL_SCHEMA,
           },
         }),
       }
