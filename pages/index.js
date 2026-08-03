@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
-  getValues, appendValues, ensureSheetsInitialized, getSettings, getActiveJournalCount, getJournaledStocks,
+  getValues, appendValues, ensureSheetsInitialized, getSettings, getInvestedCapital, getJournaledStocks,
   APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, sortRunningSignals, positionSize, buildWaSignal, mergeSignalSources } from '../lib/scoring';
@@ -40,7 +40,7 @@ export default function SinyalPage() {
   const [signals, setSignals] = useState([]);
   const [runningSignals, setRunningSignals] = useState([]);
   const [settings, setSettings] = useState(null);
-  const [heldCount, setHeldCount] = useState(0);
+  const [investedCapital, setInvestedCapital] = useState(0);
   const [journaledStocks, setJournaledStocks] = useState(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
   const [recordingStock, setRecordingStock] = useState(null);
@@ -77,15 +77,15 @@ export default function SinyalPage() {
     (async () => {
       try {
         await ensureSheetsInitialized(token);
-        const [rawRows, settingsData, held, journaled] = await Promise.all([
+        const [rawRows, settingsData, invested, journaled] = await Promise.all([
           getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token),
           getSettings(token),
-          getActiveJournalCount(token),
+          getInvestedCapital(token),
           getJournaledStocks(token),
         ]);
         if (cancelled) return;
         setSettings(settingsData);
-        setHeldCount(held);
+        setInvestedCapital(invested);
         setJournaledStocks(journaled);
         const parsed = parseWatchlistRows(rawRows, { tradeType: 'DAY TRADE' });
 
@@ -94,8 +94,10 @@ export default function SinyalPage() {
         const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);
         if (staleWaStocks.length > 0) pruneStaleWaSignals(staleWaStocks);
 
-        const openSlots = Math.max(settingsData.maxSlots - held, 0);
-        setSignals(rankSignals(combined, { openSlots }));
+        const remainingCapital = Math.max(settingsData.capital - invested, 0);
+        setSignals(rankSignals(combined, {
+          capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital,
+        }));
         setRunningSignals(sortRunningSignals(parsed));
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -227,7 +229,7 @@ export default function SinyalPage() {
     );
   }
 
-  const openSlots = settings ? Math.max(settings.maxSlots - heldCount, 0) : null;
+  const remainingCapital = settings ? Math.max(settings.capital - investedCapital, 0) : null;
   // "Sinyal hari ini" = actionable (OPEN) AND published today; everything else
   // (older still-open signals + genuinely RUNNING ones) is grouped as "running".
   const mainSignals = signals.filter((s) => s.isActionable && s.ageDays === 0);
@@ -243,7 +245,7 @@ export default function SinyalPage() {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
             {s.willSkip ? (
-              <span className="badge badge-warning">skip · slot penuh</span>
+              <span className="badge badge-warning">skip · modal habis</span>
             ) : (
               <span className="badge">skor {s.score.toFixed(2)}</span>
             )}
@@ -416,7 +418,7 @@ export default function SinyalPage() {
         <div>
           <h1 className="page-title">Sinyal Saham Harian</h1>
           <p className="page-sub">
-            {settings ? `Sisa slot: ${openSlots} dari ${settings.maxSlots}` : '...'}
+            {settings ? `Sisa modal: ${formatRupiah(remainingCapital)} dari ${formatRupiah(settings.capital)}` : '...'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
