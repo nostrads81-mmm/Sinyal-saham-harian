@@ -298,8 +298,22 @@ export default function SinyalPage() {
               </tr>
               <tr>
                 <td className="value">{s.entry.toLocaleString('id-ID')}</td>
-                <td className="value" style={{ color: '#ff6b6b' }}>{s.sl?.toLocaleString('id-ID')}</td>
-                <td className="value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</td>
+                <td className="value" style={{ color: '#ff6b6b' }}>
+                  {s.sl?.toLocaleString('id-ID')}
+                  {pos && pos.lembar > 0 && (
+                    <div className="muted" style={{ fontWeight: 400, color: '#ff6b6b' }}>
+                      -{formatRupiah((s.entry - s.sl) * pos.lembar)}
+                    </div>
+                  )}
+                </td>
+                <td className="value" style={{ color: '#4fd07e' }}>
+                  {s.tp1?.toLocaleString('id-ID')}
+                  {pos && pos.lembar > 0 && (
+                    <div className="muted" style={{ fontWeight: 400, color: '#4fd07e' }}>
+                      +{formatRupiah((s.tp1 - s.entry) * pos.lembar)}
+                    </div>
+                  )}
+                </td>
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</td>
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</td>
                 {s.isOpen && !s.owned && (
