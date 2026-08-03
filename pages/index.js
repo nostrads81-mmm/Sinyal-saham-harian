@@ -251,12 +251,16 @@ export default function SinyalPage() {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
             {s.owned && !s.willSkip && <span className="badge badge-success">sudah dibeli</span>}
-            {s.willSkip ? (
-              <span className="badge badge-warning">{skipLabel}</span>
+            {s.isOpen ? (
+              s.willSkip ? (
+                <span className="badge badge-warning">{skipLabel}</span>
+              ) : (
+                <span className="badge">skor {s.score.toFixed(2)}</span>
+              )
             ) : (
-              <span className="badge">skor {s.score.toFixed(2)}</span>
+              !s.owned && <span className="badge" style={{ background: '#20232e', color: '#8b8fa3' }}>bukan buat dibeli</span>
             )}
-            {!s.willSkip && (
+            {s.isOpen && !s.willSkip && (
               <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
                 copy
               </button>
