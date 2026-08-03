@@ -4,7 +4,7 @@ import {
   getValues, appendValues, ensureSheetsInitialized, getSettings, getInvestedCapital, getJournaledStocks,
   APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
-import { parseWatchlistRows, rankSignals, sortRunningSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
+import { parseWatchlistRows, rankSignals, partitionByDate, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
 
 function formatRupiah(n) {
@@ -38,7 +38,6 @@ export default function SinyalPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [signals, setSignals] = useState([]);
-  const [runningSignals, setRunningSignals] = useState([]);
   const [settings, setSettings] = useState(null);
   const [investedCapital, setInvestedCapital] = useState(0);
   const [journaledStocks, setJournaledStocks] = useState(new Set());
@@ -98,7 +97,6 @@ export default function SinyalPage() {
         setSignals(rankSignals(combined, {
           capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital, journaledStocks: journaled,
         }));
-        setRunningSignals(sortRunningSignals(parsed));
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -232,11 +230,7 @@ export default function SinyalPage() {
   }
 
   const remainingCapital = settings ? Math.max(settings.capital - investedCapital, 0) : null;
-  // "Sinyal hari ini" = actionable (OPEN) AND published today; everything else
-  // (older still-open signals + genuinely RUNNING ones) is grouped as "running".
-  const mainSignals = signals.filter((s) => s.isActionable && s.ageDays === 0);
-  const olderOpenSignals = signals.filter((s) => s.isActionable && s.ageDays !== 0);
-  const allRunningSignals = [...olderOpenSignals, ...runningSignals];
+  const { today: mainSignals, previous: previousSignals } = partitionByDate(signals);
 
   function renderCard(s) {
     const pos = s.position || null;
@@ -259,11 +253,9 @@ export default function SinyalPage() {
             )}
           </div>
         </div>
-        <p className="muted" style={{ marginTop: 2 }}>
-          {s.status}
-          {s.isRunning && s.highestTpReached > 0 ? ` (TP${s.highestTpReached} sudah tercapai)` : ''}
-          {s.ageDays !== null ? ` · ${s.ageDays === 0 ? 'baru hari ini' : `sejak ${s.ageDays} hari`}` : ''}
-        </p>
+        {s.detailStatus && (
+          <p className="muted" style={{ marginTop: 4, lineHeight: 1.45 }}>{s.detailStatus}</p>
+        )}
         {s.waitFor && (
           <p className="muted">Tunggu turun ke {s.waitFor} sebelum entry</p>
         )}
@@ -273,12 +265,12 @@ export default function SinyalPage() {
         {s.adjusted && (
           <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
         )}
-        {(s.isRunning || !s.willSkip) && (
+        {(!s.isOpen || !s.willSkip) && (
           <table className="data-table">
             <tbody>
               <tr>
                 <td>Entry</td><td>SL</td><td>TP1</td><td>TP2</td><td>TP3</td>
-                {!s.isRunning && <td style={{ textAlign: 'right' }}>Posisi</td>}
+                {s.isOpen && <td style={{ textAlign: 'right' }}>Posisi</td>}
               </tr>
               <tr>
                 <td className="value">{s.entry.toLocaleString('id-ID')}</td>
@@ -286,7 +278,7 @@ export default function SinyalPage() {
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</td>
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</td>
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</td>
-                {!s.isRunning && (
+                {s.isOpen && (
                   <td className="value" style={{ textAlign: 'right' }}>
                     {pos ? formatRupiah(pos.rupiah) : '-'}
                     {pos && <div className="muted" style={{ fontWeight: 400 }}>{Math.round(pos.lembar / 100)} lot</div>}
@@ -297,7 +289,7 @@ export default function SinyalPage() {
           </table>
         )}
 
-        {!s.isRunning && !s.willSkip && recordingStock !== s.stock && (
+        {s.isOpen && !s.willSkip && recordingStock !== s.stock && (
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button className="btn" style={{ flex: 1 }} onClick={() => openRecordForm(s, pos)}>
               Sudah beli, catat ke jurnal
@@ -451,15 +443,14 @@ export default function SinyalPage() {
         <p className="muted">Tidak ada sinyal DAY TRADE aktif saat ini.</p>
       )}
 
-      <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>Sinyal hari ini ({mainSignals.length})</p>
+      <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>Sinyal hari ini</p>
+      {mainSignals.length === 0 && <p className="muted">Belum ada sinyal baru hari ini.</p>}
       {mainSignals.map(renderCard)}
 
-      {allRunningSignals.length > 0 && (
+      {previousSignals.length > 0 && (
         <>
-          <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>
-            Sinyal running ({allRunningSignals.length})
-          </p>
-          {allRunningSignals.map(renderCard)}
+          <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Sinyal Kemarin</p>
+          {previousSignals.map(renderCard)}
         </>
       )}
 
