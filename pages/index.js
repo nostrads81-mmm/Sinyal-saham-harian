@@ -450,11 +450,11 @@ export default function SinyalPage() {
         suppressContentEditableWarning
         onPaste={handleWaPasteZone}
         style={{
-          background: '#fff', border: '1.5px dashed #b9c4e0', borderRadius: 14, padding: '18px 14px', marginBottom: 12,
-          color: '#4a5170', fontSize: 14, fontWeight: 500, outline: 'none', minHeight: 20, textAlign: 'center',
+          background: 'transparent', border: '1px dashed #343a4a', borderRadius: 12, padding: '12px 14px', marginBottom: 12,
+          color: '#8b8fa3', fontSize: 13, fontWeight: 500, outline: 'none', minHeight: 18, textAlign: 'center',
         }}
       >
-        {waExtracting ? 'Membaca screenshot WA...' : '📋 Tambah sinyal dari WA'}
+        {waExtracting ? 'Membaca screenshot WA...' : 'Tambah sinyal dari WA'}
       </div>
       {waExtractError && <p className="muted" style={{ color: '#ff6b6b' }}>{waExtractError}</p>}
 
