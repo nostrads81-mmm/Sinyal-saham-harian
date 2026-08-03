@@ -53,7 +53,6 @@ export default function SinyalPage() {
   const [waExtracting, setWaExtracting] = useState(false);
   const [waExtractError, setWaExtractError] = useState(null);
   const [waReview, setWaReview] = useState(null);
-  const waFileInputRef = useRef(null);
   const waPasteZoneRef = useRef(null);
 
   useEffect(() => {
@@ -159,12 +158,6 @@ export default function SinyalPage() {
     } finally {
       setWaExtracting(false);
     }
-  }
-
-  function handleWaFileSelected(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (file) processWaImage(file);
   }
 
   function handleWaPasteZone(e) {
@@ -430,23 +423,8 @@ export default function SinyalPage() {
         </div>
       </div>
 
-      <input
-        ref={waFileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={handleWaFileSelected}
-      />
-      <button
-        className="btn"
-        style={{ width: '100%', marginBottom: 12 }}
-        onClick={() => waFileInputRef.current?.click()}
-        disabled={waExtracting}
-      >
-        {waExtracting ? 'Membaca screenshot WA...' : 'Upload sinyal dari WA'}
-      </button>
       <p className="muted" style={{ marginBottom: 4 }}>
-        Di PC: Ctrl+V di mana saja. Di HP: screenshot dulu, lalu tap kotak di bawah &amp; tahan sampai muncul opsi "Tempel":
+        {waExtracting ? 'Membaca screenshot WA...' : 'Tambah sinyal dari WA — di PC: Ctrl+V di mana saja. Di HP: screenshot dulu, lalu tap kotak di bawah & tahan sampai muncul opsi "Tempel":'}
       </p>
       <div
         ref={waPasteZoneRef}

@@ -37,7 +37,6 @@ export default function PortfolioPage() {
   const [review, setReview] = useState(null); // holdings array while editing, or null
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  const fileInputRef = useRef(null);
   const pasteZoneRef = useRef(null);
 
   useEffect(() => {
@@ -90,12 +89,6 @@ export default function PortfolioPage() {
     } finally {
       setExtracting(false);
     }
-  }
-
-  function handleFileSelected(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (file) processPortfolioImage(file);
   }
 
   function handlePasteZone(e) {
@@ -246,23 +239,8 @@ export default function PortfolioPage() {
         </div>
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={handleFileSelected}
-      />
-      <button
-        className="btn btn-primary"
-        style={{ width: '100%', marginBottom: 12 }}
-        onClick={() => fileInputRef.current?.click()}
-        disabled={extracting}
-      >
-        {extracting ? 'Membaca gambar...' : 'Upload screenshot'}
-      </button>
       <p className="muted" style={{ marginBottom: 4 }}>
-        Di PC: Ctrl+V di mana saja. Di HP: screenshot dulu, lalu tap kotak di bawah &amp; tahan sampai muncul opsi "Tempel":
+        {extracting ? 'Membaca gambar...' : 'Upload portofolio — di PC: Ctrl+V di mana saja. Di HP: screenshot dulu, lalu tap kotak di bawah & tahan sampai muncul opsi "Tempel":'}
       </p>
       <div
         ref={pasteZoneRef}
