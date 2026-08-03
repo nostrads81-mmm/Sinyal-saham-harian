@@ -30,7 +30,7 @@ const PORTFOLIO_SCHEMA = {
   required: ['holdings'],
 };
 
-const PROMPT = `Ini screenshot portofolio saham dari aplikasi Stockbit. Baca tiap baris saham dan ekstrak:
+const PORTFOLIO_PROMPT = `Ini screenshot portofolio saham dari aplikasi Stockbit. Baca tiap baris saham dan ekstrak:
 - symbol (kode saham)
 - avgPrice (kolom "Avg Price")
 - qtyLot (kolom "Qty", ini satuan LOT bukan lembar)
@@ -39,6 +39,49 @@ const PROMPT = `Ini screenshot portofolio saham dari aplikasi Stockbit. Baca tia
 
 Kalau ada ringkasan akun (Trading Balance/cash, Invested, Total Equity) di layar, isi juga field account. Kalau tidak ada, boleh dikosongkan.
 Jangan mengarang angka - kalau benar-benar tidak terbaca, tetap isi field-nya dengan estimasi terbaikmu tapi tandai confidence "low".`;
+
+const WA_SIGNAL_SCHEMA = {
+  type: 'object',
+  properties: {
+    signals: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          stock: { type: 'string' },
+          tradeType: { type: 'string', enum: ['DAY TRADE', 'SWING TRADE'] },
+          buyLow: { type: 'number' },
+          buyHigh: { type: 'number' },
+          sl: { type: 'number' },
+          tp1: { type: 'number' },
+          tp2: { type: 'number' },
+          mmPercent: { type: 'number' },
+          confidence: { type: 'string', enum: ['high', 'low'] },
+        },
+        required: ['stock', 'tradeType', 'buyLow', 'buyHigh', 'sl', 'tp1', 'confidence'],
+      },
+    },
+  },
+  required: ['signals'],
+};
+
+const WA_SIGNAL_PROMPT = `Ini screenshot pengumuman sinyal saham dari grup WhatsApp komunitas trading. Formatnya biasanya seperti:
+"DAY TRADE - BUY [KODE SAHAM] : [harga rendah]-[harga tinggi]"
+"SL IF CLOSE < [harga]" atau "SL : [harga]"
+"TP 1 : [harga]"
+"TP 2 : [harga]" (kadang tertulis "TP 1" dua kali karena typo admin - baris kedua tetap perlakukan sebagai TP2 jika angkanya lebih tinggi dari TP1)
+"MM : [persen] EQUITY"
+
+Bisa ada lebih dari satu sinyal saham dalam satu screenshot. Ekstrak semua yang kamu temukan jadi array "signals". Untuk tiap sinyal:
+- stock: kode saham
+- tradeType: "DAY TRADE" atau "SWING TRADE" sesuai yang tertulis
+- buyLow, buyHigh: dari range harga beli
+- sl: harga stop loss (angka saja, abaikan kata "IF CLOSE <")
+- tp1, tp2: target profit (tp2 boleh dikosongkan kalau cuma ada satu TP)
+- mmPercent: angka MM dalam persen (misal "9% EQUITY" -> 9)
+- confidence: "low" kalau ada angka yang kurang yakin terbaca, selain itu "high"
+
+Abaikan paragraf analisa teknikal panjang di bawahnya (alasan, kondisi chart, dll) - itu tidak perlu diekstrak, cukup data terstruktur di atas.`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -52,11 +95,14 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { image, mimeType } = req.body || {};
+  const { image, mimeType, type } = req.body || {};
   if (!image || !mimeType) {
     res.status(400).json({ error: 'image dan mimeType wajib dikirim' });
     return;
   }
+
+  const prompt = type === 'wa_signal' ? WA_SIGNAL_PROMPT : PORTFOLIO_PROMPT;
+  const schema = type === 'wa_signal' ? WA_SIGNAL_SCHEMA : PORTFOLIO_SCHEMA;
 
   try {
     const geminiRes = await fetch(
@@ -67,13 +113,13 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [
-              { text: PROMPT },
+              { text: prompt },
               { inline_data: { mime_type: mimeType, data: image } },
             ],
           }],
           generationConfig: {
             responseMimeType: 'application/json',
-            responseSchema: PORTFOLIO_SCHEMA,
+            responseSchema: schema,
           },
         }),
       }

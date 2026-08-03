@@ -4,7 +4,8 @@ import {
   getValues, appendValues, ensureSheetsInitialized, getSettings, getActiveJournalCount,
   APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
-import { parseWatchlistRows, rankSignals, positionSize } from '../lib/scoring';
+import { parseWatchlistRows, rankSignals, positionSize, buildWaSignal, mergeSignalSources } from '../lib/scoring';
+import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
 
 function formatRupiah(n) {
   return 'Rp' + Math.round(n).toLocaleString('id-ID');
@@ -14,6 +15,15 @@ function todayDDMMYYYY() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function buildAiPrompt(signals) {
@@ -37,6 +47,11 @@ export default function SinyalPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const savingRef = useRef(false);
+
+  const [waExtracting, setWaExtracting] = useState(false);
+  const [waExtractError, setWaExtractError] = useState(null);
+  const [waReview, setWaReview] = useState(null);
+  const waFileInputRef = useRef(null);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -69,8 +84,14 @@ export default function SinyalPage() {
         setSettings(settingsData);
         setHeldCount(held);
         const parsed = parseWatchlistRows(rawRows, { tradeType: 'DAY TRADE' });
+
+        const waRaw = getWaSignals();
+        const waBuilt = waRaw.map(buildWaSignal);
+        const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);
+        if (staleWaStocks.length > 0) pruneStaleWaSignals(staleWaStocks);
+
         const openSlots = Math.max(settingsData.maxSlots - held, 0);
-        setSignals(rankSignals(parsed, { openSlots }));
+        setSignals(rankSignals(combined, { openSlots }));
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -113,6 +134,55 @@ export default function SinyalPage() {
     }
   }
 
+  async function handleWaFileSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setWaExtracting(true);
+    setWaExtractError(null);
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await fetch('/api/extract-screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64, mimeType: file.type, type: 'wa_signal' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal membaca gambar');
+      const onlyDayTrade = (data.signals || []).filter((s) => s.tradeType === 'DAY TRADE');
+      setWaReview(onlyDayTrade);
+    } catch (err) {
+      setWaExtractError(err.message);
+    } finally {
+      setWaExtracting(false);
+    }
+  }
+
+  function updateWaReviewField(index, field, value) {
+    setWaReview((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
+  }
+
+  function removeWaReviewRow(index) {
+    setWaReview((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function confirmWaSignals() {
+    for (const s of waReview) {
+      addWaSignal({
+        stock: s.stock,
+        buyLow: Number(s.buyLow),
+        buyHigh: Number(s.buyHigh),
+        sl: Number(s.sl),
+        tp1: Number(s.tp1),
+        tp2: s.tp2 ? Number(s.tp2) : null,
+        mmPercent: s.mmPercent ? Number(s.mmPercent) : null,
+        capturedAt: new Date().toISOString(),
+      });
+    }
+    setWaReview(null);
+    setRefreshKey((k) => k + 1);
+  }
+
   function copyAll() {
     const shown = signals.filter((s) => !s.willSkip);
     navigator.clipboard.writeText(buildAiPrompt(shown));
@@ -142,6 +212,7 @@ export default function SinyalPage() {
         <div className="card-row">
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
             {s.willSkip ? (
               <span className="badge badge-warning">skip · slot penuh</span>
             ) : (
@@ -159,6 +230,9 @@ export default function SinyalPage() {
         </p>
         {s.waitFor && (
           <p className="muted">Tunggu turun ke {s.waitFor} sebelum entry</p>
+        )}
+        {s.estimatedEntry && (
+          <p className="muted">Entry estimasi (tengah range) - cek harga live sebelum eksekusi</p>
         )}
         {!s.willSkip && (
           <table className="data-table">
@@ -180,13 +254,19 @@ export default function SinyalPage() {
         )}
 
         {!s.willSkip && recordingStock !== s.stock && (
-          <button
-            className="btn"
-            style={{ marginTop: 8, width: '100%' }}
-            onClick={() => openRecordForm(s, pos)}
-          >
-            Sudah beli, catat ke jurnal
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button className="btn" style={{ flex: 1 }} onClick={() => openRecordForm(s, pos)}>
+              Sudah beli, catat ke jurnal
+            </button>
+            {s.source === 'wa' && (
+              <button
+                className="btn"
+                onClick={() => { removeWaSignal(s.stock); setRefreshKey((k) => k + 1); }}
+              >
+                hapus
+              </button>
+            )}
+          </div>
         )}
 
         {recordingStock === s.stock && (
@@ -225,6 +305,70 @@ export default function SinyalPage() {
     );
   }
 
+  if (waReview !== null) {
+    return (
+      <div>
+        <div className="page-header">
+          <h1 className="page-title">Review sinyal WA</h1>
+          <p className="page-sub">Periksa dulu angkanya sebelum ditambahkan</p>
+        </div>
+
+        {waReview.length === 0 && (
+          <p className="muted">Tidak ada sinyal DAY TRADE yang terbaca dari screenshot ini.</p>
+        )}
+
+        {waReview.map((s, i) => (
+          <div key={i} className="card">
+            <div className="card-row">
+              <input
+                value={s.stock}
+                onChange={(e) => updateWaReviewField(i, 'stock', e.target.value)}
+                style={{ width: '40%', fontWeight: 600 }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {s.confidence === 'low' && <span className="badge badge-warning">cek lagi</span>}
+                <button className="btn" style={{ padding: '4px 8px' }} onClick={() => removeWaReviewRow(i)}>hapus</button>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+              <div>
+                <p className="muted" style={{ marginBottom: 4 }}>Buy low</p>
+                <input type="number" value={s.buyLow} onChange={(e) => updateWaReviewField(i, 'buyLow', e.target.value)} />
+              </div>
+              <div>
+                <p className="muted" style={{ marginBottom: 4 }}>Buy high</p>
+                <input type="number" value={s.buyHigh} onChange={(e) => updateWaReviewField(i, 'buyHigh', e.target.value)} />
+              </div>
+              <div>
+                <p className="muted" style={{ marginBottom: 4 }}>SL</p>
+                <input type="number" value={s.sl} onChange={(e) => updateWaReviewField(i, 'sl', e.target.value)} />
+              </div>
+              <div>
+                <p className="muted" style={{ marginBottom: 4 }}>TP1</p>
+                <input type="number" value={s.tp1} onChange={(e) => updateWaReviewField(i, 'tp1', e.target.value)} />
+              </div>
+              <div>
+                <p className="muted" style={{ marginBottom: 4 }}>TP2 (opsional)</p>
+                <input type="number" value={s.tp2 || ''} onChange={(e) => updateWaReviewField(i, 'tp2', e.target.value)} />
+              </div>
+              <div>
+                <p className="muted" style={{ marginBottom: 4 }}>MM %</p>
+                <input type="number" value={s.mmPercent || ''} onChange={(e) => updateWaReviewField(i, 'mmPercent', e.target.value)} />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button className="btn" style={{ flex: 1 }} onClick={() => setWaReview(null)}>Batal</button>
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={confirmWaSignals} disabled={waReview.length === 0}>
+            Tambahkan ke daftar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="page-header card-row">
@@ -236,6 +380,23 @@ export default function SinyalPage() {
         </div>
         <button className="btn" onClick={copyAll}>Copy semua</button>
       </div>
+
+      <input
+        ref={waFileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleWaFileSelected}
+      />
+      <button
+        className="btn"
+        style={{ width: '100%', marginBottom: 12 }}
+        onClick={() => waFileInputRef.current?.click()}
+        disabled={waExtracting}
+      >
+        {waExtracting ? 'Membaca screenshot WA...' : 'Upload sinyal dari WA'}
+      </button>
+      {waExtractError && <p className="muted" style={{ color: '#ff6b6b' }}>{waExtractError}</p>}
 
       {loading && <p className="muted">Memuat sinyal...</p>}
       {error && <p className="muted" style={{ color: '#ff6b6b' }}>{error}</p>}
