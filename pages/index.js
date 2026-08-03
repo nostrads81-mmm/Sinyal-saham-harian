@@ -250,15 +250,19 @@ export default function SinyalPage() {
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
-            {s.owned ? (
-              <span className="badge badge-success">sudah dibeli</span>
-            ) : s.isOpen ? (
-              s.willSkip ? (
-                <span className="badge badge-warning">{skipLabel}</span>
-              ) : (
+            {s.owned && (
+              <>
+                <span className="badge badge-success">sudah dibeli</span>
                 <span className="badge">skor {s.score.toFixed(2)}</span>
-              )
-            ) : (
+              </>
+            )}
+            {!s.owned && s.isOpen && s.willSkip && (
+              <span className="badge badge-warning">{skipLabel}</span>
+            )}
+            {!s.owned && s.isOpen && !s.willSkip && (
+              <span className="badge">skor {s.score.toFixed(2)}</span>
+            )}
+            {!s.owned && !s.isOpen && (
               <span className="badge" style={{ background: '#20232e', color: '#8b8fa3' }}>bukan buat dibeli</span>
             )}
             {s.isOpen && !s.willSkip && (
