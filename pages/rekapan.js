@@ -85,7 +85,7 @@ export default function RekapanPage() {
       const pnl = pnlPercent(entry.entry, exit);
       const status = pnl >= 0 ? 'CLOSE-PROFIT' : 'CLOSE-LOSS';
       await closeJournalEntry(token, entry.rowNumber, {
-        tanggalExit: todayDDMMYYYY(),
+        tanggalExit: `'${todayDDMMYYYY()}`,
         hargaExit: exit,
         status,
       });

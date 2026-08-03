@@ -4,7 +4,7 @@ import {
   getValues, appendValues, ensureSheetsInitialized, getSettings, getInvestedCapital, getJournaledStocks,
   APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
-import { parseWatchlistRows, rankSignals, sortRunningSignals, positionSize, buildWaSignal, mergeSignalSources } from '../lib/scoring';
+import { parseWatchlistRows, rankSignals, sortRunningSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
 
 function formatRupiah(n) {
@@ -96,7 +96,7 @@ export default function SinyalPage() {
 
         const remainingCapital = Math.max(settingsData.capital - invested, 0);
         setSignals(rankSignals(combined, {
-          capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital,
+          capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital, journaledStocks: journaled,
         }));
         setRunningSignals(sortRunningSignals(parsed));
       } catch (e) {
@@ -127,7 +127,9 @@ export default function SinyalPage() {
     setSaveError(null);
     try {
       const row = [
-        todayDDMMYYYY(), s.stock, Number(fillPrice) || s.entry, s.sl, s.tp1, s.tp2 || '',
+        // Leading "'" forces Sheets to keep this as literal text instead of
+        // silently converting "03-08-2026" into a date serial number (46237).
+        `'${todayDDMMYYYY()}`, s.stock, Number(fillPrice) || s.entry, s.sl, s.tp1, s.tp2 || '',
         'RUNNING', '', '', `Lot: ${fillLot || '-'}`,
       ];
       await appendValues(APP_DATA_SHEET_ID, 'DayTrade_Journal!A:J', [row], token);
@@ -237,7 +239,8 @@ export default function SinyalPage() {
   const allRunningSignals = [...olderOpenSignals, ...runningSignals];
 
   function renderCard(s) {
-    const pos = settings ? positionSize(s.entry, s.sl, settings.capital, settings.riskPercent) : null;
+    const pos = s.position || null;
+    const skipLabel = s.skipReason === 'sudah-terbeli' ? 'sudah dibeli' : 'skip · modal habis';
     return (
       <div key={s.stock + s.status} className={`card ${s.willSkip ? 'skip-card' : ''}`}>
         <div className="card-row">
@@ -245,7 +248,7 @@ export default function SinyalPage() {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
             {s.willSkip ? (
-              <span className="badge badge-warning">skip · modal habis</span>
+              <span className="badge badge-warning">{skipLabel}</span>
             ) : (
               <span className="badge">skor {s.score.toFixed(2)}</span>
             )}
@@ -266,6 +269,9 @@ export default function SinyalPage() {
         )}
         {s.estimatedEntry && (
           <p className="muted">Entry estimasi (tengah range) - cek harga live sebelum eksekusi</p>
+        )}
+        {s.adjusted && (
+          <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
         )}
         {(s.isRunning || !s.willSkip) && (
           <table className="data-table">
@@ -293,13 +299,8 @@ export default function SinyalPage() {
 
         {!s.isRunning && !s.willSkip && recordingStock !== s.stock && (
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button
-              className="btn"
-              style={{ flex: 1 }}
-              onClick={() => openRecordForm(s, pos)}
-              disabled={journaledStocks.has(s.stock.toUpperCase())}
-            >
-              {journaledStocks.has(s.stock.toUpperCase()) ? 'Sudah tercatat di jurnal' : 'Sudah beli, catat ke jurnal'}
+            <button className="btn" style={{ flex: 1 }} onClick={() => openRecordForm(s, pos)}>
+              Sudah beli, catat ke jurnal
             </button>
             {s.source === 'wa' && (
               <button
