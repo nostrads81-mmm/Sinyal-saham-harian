@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
   getValues, appendValues, ensureSheetsInitialized, getSettings, getInvestedCapital, getJournaledStocks,
-  APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
+  getActiveJournalCount, APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, partitionByDate, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
@@ -41,6 +41,7 @@ export default function SinyalPage() {
   const [settings, setSettings] = useState(null);
   const [investedCapital, setInvestedCapital] = useState(0);
   const [journaledStocks, setJournaledStocks] = useState(new Set());
+  const [usedSlots, setUsedSlots] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [recordingStock, setRecordingStock] = useState(null);
   const [fillPrice, setFillPrice] = useState('');
@@ -76,16 +77,18 @@ export default function SinyalPage() {
     (async () => {
       try {
         await ensureSheetsInitialized(token);
-        const [rawRows, settingsData, invested, journaled] = await Promise.all([
+        const [rawRows, settingsData, invested, journaled, occupiedSlots] = await Promise.all([
           getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token),
           getSettings(token),
           getInvestedCapital(token),
           getJournaledStocks(token),
+          getActiveJournalCount(token),
         ]);
         if (cancelled) return;
         setSettings(settingsData);
         setInvestedCapital(invested);
         setJournaledStocks(journaled);
+        setUsedSlots(occupiedSlots);
         const parsed = parseWatchlistRows(rawRows, { tradeType: 'DAY TRADE' });
 
         const waRaw = getWaSignals();
@@ -95,7 +98,8 @@ export default function SinyalPage() {
 
         const remainingCapital = Math.max(settingsData.capital - invested, 0);
         setSignals(rankSignals(combined, {
-          capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital, journaledStocks: journaled,
+          capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital,
+          maxSlots: settingsData.maxSlots, occupiedSlots, journaledStocks: journaled,
         }));
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -234,7 +238,12 @@ export default function SinyalPage() {
 
   function renderCard(s) {
     const pos = s.position || null;
-    const skipLabel = s.skipReason === 'sudah-terbeli' ? 'sudah dibeli' : 'skip · modal habis';
+    const SKIP_LABELS = {
+      'sudah-terbeli': 'sudah dibeli',
+      'slot-penuh': 'skip · slot penuh',
+      'modal-habis': 'skip · modal habis',
+    };
+    const skipLabel = SKIP_LABELS[s.skipReason] || 'skip';
     return (
       <div key={s.stock + s.status} className={`card ${s.willSkip ? 'skip-card' : ''}`}>
         <div className="card-row">
@@ -411,7 +420,9 @@ export default function SinyalPage() {
         <div>
           <h1 className="page-title">Sinyal Saham Harian</h1>
           <p className="page-sub">
-            {settings ? `Sisa modal: ${formatRupiah(remainingCapital)} dari ${formatRupiah(settings.capital)}` : '...'}
+            {settings
+              ? `Slot ${usedSlots}/${settings.maxSlots} · Sisa modal ${formatRupiah(remainingCapital)} dari ${formatRupiah(settings.capital)}`
+              : '...'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
