@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
-  getValues, appendValues, ensureSheetsInitialized, getSettings, getActiveJournalCount,
+  getValues, appendValues, ensureSheetsInitialized, getSettings, getActiveJournalCount, getJournaledStocks,
   APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, sortRunningSignals, positionSize, buildWaSignal, mergeSignalSources } from '../lib/scoring';
@@ -41,6 +41,7 @@ export default function SinyalPage() {
   const [runningSignals, setRunningSignals] = useState([]);
   const [settings, setSettings] = useState(null);
   const [heldCount, setHeldCount] = useState(0);
+  const [journaledStocks, setJournaledStocks] = useState(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
   const [recordingStock, setRecordingStock] = useState(null);
   const [fillPrice, setFillPrice] = useState('');
@@ -76,14 +77,16 @@ export default function SinyalPage() {
     (async () => {
       try {
         await ensureSheetsInitialized(token);
-        const [rawRows, settingsData, held] = await Promise.all([
+        const [rawRows, settingsData, held, journaled] = await Promise.all([
           getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token),
           getSettings(token),
           getActiveJournalCount(token),
+          getJournaledStocks(token),
         ]);
         if (cancelled) return;
         setSettings(settingsData);
         setHeldCount(held);
+        setJournaledStocks(journaled);
         const parsed = parseWatchlistRows(rawRows, { tradeType: 'DAY TRADE' });
 
         const waRaw = getWaSignals();
@@ -281,8 +284,13 @@ export default function SinyalPage() {
 
         {!s.isRunning && !s.willSkip && recordingStock !== s.stock && (
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button className="btn" style={{ flex: 1 }} onClick={() => openRecordForm(s, pos)}>
-              Sudah beli, catat ke jurnal
+            <button
+              className="btn"
+              style={{ flex: 1 }}
+              onClick={() => openRecordForm(s, pos)}
+              disabled={journaledStocks.has(s.stock.toUpperCase())}
+            >
+              {journaledStocks.has(s.stock.toUpperCase()) ? 'Sudah tercatat di jurnal' : 'Sudah beli, catat ke jurnal'}
             </button>
             {s.source === 'wa' && (
               <button
