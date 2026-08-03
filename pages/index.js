@@ -250,6 +250,7 @@ export default function SinyalPage() {
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
+            {s.owned && !s.willSkip && <span className="badge badge-success">sudah dibeli</span>}
             {s.willSkip ? (
               <span className="badge badge-warning">{skipLabel}</span>
             ) : (
