@@ -246,9 +246,9 @@ export default function SinyalPage() {
     const skipLabel = SKIP_LABELS[s.skipReason] || 'skip';
     return (
       <div key={s.stock + s.status} className={`card ${s.willSkip && s.skipReason !== 'sudah-terbeli' ? 'skip-card' : ''}`}>
-        <div className="card-row">
+        <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
             {s.owned && (
               <>
@@ -290,41 +290,53 @@ export default function SinyalPage() {
           <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
         )}
         {(!s.willSkip || s.owned || !s.isOpen) && (
-          <table className="data-table">
-            <tbody>
-              <tr>
-                <td>Entry</td><td>SL</td><td>TP1</td><td>TP2</td><td>TP3</td>
-                {s.isOpen && !s.owned && <td style={{ textAlign: 'right' }}>Posisi</td>}
-              </tr>
-              <tr>
-                <td className="value">{s.entry.toLocaleString('id-ID')}</td>
-                <td className="value" style={{ color: '#ff6b6b' }}>
-                  {s.sl?.toLocaleString('id-ID')}
-                  {pos && pos.lembar > 0 && (
-                    <div className="muted" style={{ fontWeight: 400, color: '#ff6b6b' }}>
-                      -{formatRupiah((s.entry - s.sl) * pos.lembar)}
-                    </div>
-                  )}
-                </td>
-                <td className="value" style={{ color: '#4fd07e' }}>
-                  {s.tp1?.toLocaleString('id-ID')}
-                  {pos && pos.lembar > 0 && (
-                    <div className="muted" style={{ fontWeight: 400, color: '#4fd07e' }}>
-                      +{formatRupiah((s.tp1 - s.entry) * pos.lembar)}
-                    </div>
-                  )}
-                </td>
-                <td className="value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</td>
-                <td className="value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</td>
-                {s.isOpen && !s.owned && (
-                  <td className="value" style={{ textAlign: 'right' }}>
-                    {pos ? formatRupiah(pos.rupiah) : '-'}
-                    {pos && <div className="muted" style={{ fontWeight: 400 }}>{Math.round(pos.lembar / 100)} lot</div>}
-                  </td>
+          <>
+            <div className="metric-grid">
+              <div className="metric-cell">
+                <div className="metric-label">Entry</div>
+                <div className="metric-value">{s.entry.toLocaleString('id-ID')}</div>
+              </div>
+              <div className="metric-cell">
+                <div className="metric-label">SL</div>
+                <div className="metric-value" style={{ color: '#ff6b6b' }}>{s.sl?.toLocaleString('id-ID')}</div>
+                {pos && pos.lembar > 0 && (
+                  <div className="metric-sub" style={{ color: '#ff6b6b' }}>
+                    -{formatRupiah((s.entry - s.sl) * pos.lembar)}
+                  </div>
                 )}
-              </tr>
-            </tbody>
-          </table>
+              </div>
+              <div className="metric-cell">
+                <div className="metric-label">TP1</div>
+                <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</div>
+                {pos && pos.lembar > 0 && (
+                  <div className="metric-sub" style={{ color: '#4fd07e' }}>
+                    +{formatRupiah((s.tp1 - s.entry) * pos.lembar)}
+                  </div>
+                )}
+              </div>
+              {(s.tp2 || s.tp3) && (
+                <>
+                  <div className="metric-cell">
+                    <div className="metric-label">TP2</div>
+                    <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</div>
+                  </div>
+                  <div className="metric-cell">
+                    <div className="metric-label">TP3</div>
+                    <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</div>
+                  </div>
+                  <div className="metric-cell" />
+                </>
+              )}
+            </div>
+            {s.isOpen && !s.owned && pos && (
+              <div className="position-box">
+                <span className="muted">Saran posisi</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>
+                  {formatRupiah(pos.rupiah)} <span className="muted" style={{ fontWeight: 500 }}>· {Math.round(pos.lembar / 100)} lot</span>
+                </span>
+              </div>
+            )}
+          </>
         )}
 
         {s.isOpen && !s.willSkip && recordingStock !== s.stock && (
