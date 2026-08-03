@@ -285,12 +285,12 @@ export default function SinyalPage() {
         {s.adjusted && (
           <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
         )}
-        {(!s.isOpen || !s.willSkip) && (
+        {(!s.willSkip || s.owned || !s.isOpen) && (
           <table className="data-table">
             <tbody>
               <tr>
                 <td>Entry</td><td>SL</td><td>TP1</td><td>TP2</td><td>TP3</td>
-                {s.isOpen && <td style={{ textAlign: 'right' }}>Posisi</td>}
+                {s.isOpen && !s.owned && <td style={{ textAlign: 'right' }}>Posisi</td>}
               </tr>
               <tr>
                 <td className="value">{s.entry.toLocaleString('id-ID')}</td>
@@ -298,7 +298,7 @@ export default function SinyalPage() {
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</td>
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</td>
                 <td className="value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</td>
-                {s.isOpen && (
+                {s.isOpen && !s.owned && (
                   <td className="value" style={{ textAlign: 'right' }}>
                     {pos ? formatRupiah(pos.rupiah) : '-'}
                     {pos && <div className="muted" style={{ fontWeight: 400 }}>{Math.round(pos.lembar / 100)} lot</div>}
