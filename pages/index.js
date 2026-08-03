@@ -54,6 +54,7 @@ export default function SinyalPage() {
   const [waExtractError, setWaExtractError] = useState(null);
   const [waReview, setWaReview] = useState(null);
   const waFileInputRef = useRef(null);
+  const waPasteZoneRef = useRef(null);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -163,6 +164,15 @@ export default function SinyalPage() {
   function handleWaFileSelected(e) {
     const file = e.target.files?.[0];
     e.target.value = '';
+    if (file) processWaImage(file);
+  }
+
+  function handleWaPasteZone(e) {
+    e.preventDefault();
+    const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+    if (waPasteZoneRef.current) waPasteZoneRef.current.innerHTML = '';
+    if (!item) return;
+    const file = item.getAsFile();
     if (file) processWaImage(file);
   }
 
@@ -435,9 +445,21 @@ export default function SinyalPage() {
       >
         {waExtracting ? 'Membaca screenshot WA...' : 'Upload sinyal dari WA'}
       </button>
-      <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>
-        atau tempel (Ctrl+V) screenshot langsung di halaman ini
+      <p className="muted" style={{ marginBottom: 4 }}>
+        Di PC: Ctrl+V di mana saja. Di HP: screenshot dulu, lalu tap kotak di bawah &amp; tahan sampai muncul opsi "Tempel":
       </p>
+      <div
+        ref={waPasteZoneRef}
+        contentEditable
+        suppressContentEditableWarning
+        onPaste={handleWaPasteZone}
+        style={{
+          border: '1px dashed #33353f', borderRadius: 8, padding: 12, marginBottom: 12,
+          color: '#7a7d87', fontSize: 13, outline: 'none', minHeight: 20,
+        }}
+      >
+        Tap di sini, lalu tempel screenshot
+      </div>
       {waExtractError && <p className="muted" style={{ color: '#ff6b6b' }}>{waExtractError}</p>}
 
       {loading && <p className="muted">Memuat sinyal...</p>}

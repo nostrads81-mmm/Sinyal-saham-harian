@@ -38,6 +38,7 @@ export default function PortfolioPage() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const fileInputRef = useRef(null);
+  const pasteZoneRef = useRef(null);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -94,6 +95,15 @@ export default function PortfolioPage() {
   function handleFileSelected(e) {
     const file = e.target.files?.[0];
     e.target.value = '';
+    if (file) processPortfolioImage(file);
+  }
+
+  function handlePasteZone(e) {
+    e.preventDefault();
+    const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+    if (pasteZoneRef.current) pasteZoneRef.current.innerHTML = '';
+    if (!item) return;
+    const file = item.getAsFile();
     if (file) processPortfolioImage(file);
   }
 
@@ -251,9 +261,21 @@ export default function PortfolioPage() {
       >
         {extracting ? 'Membaca gambar...' : 'Upload screenshot'}
       </button>
-      <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>
-        atau tempel (Ctrl+V) screenshot langsung di halaman ini
+      <p className="muted" style={{ marginBottom: 4 }}>
+        Di PC: Ctrl+V di mana saja. Di HP: screenshot dulu, lalu tap kotak di bawah &amp; tahan sampai muncul opsi "Tempel":
       </p>
+      <div
+        ref={pasteZoneRef}
+        contentEditable
+        suppressContentEditableWarning
+        onPaste={handlePasteZone}
+        style={{
+          border: '1px dashed #33353f', borderRadius: 8, padding: 12, marginBottom: 12,
+          color: '#7a7d87', fontSize: 13, outline: 'none', minHeight: 20,
+        }}
+      >
+        Tap di sini, lalu tempel screenshot
+      </div>
       {extractError && <p className="muted" style={{ color: '#ff6b6b' }}>{extractError}</p>}
 
       {loading && <p className="muted">Memuat portofolio...</p>}
