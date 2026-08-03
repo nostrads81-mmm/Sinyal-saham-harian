@@ -228,7 +228,11 @@ export default function SinyalPage() {
   }
 
   const openSlots = settings ? Math.max(settings.maxSlots - heldCount, 0) : null;
-  const mainSignals = signals.filter((s) => s.isActionable);
+  // "Sinyal hari ini" = actionable (OPEN) AND published today; everything else
+  // (older still-open signals + genuinely RUNNING ones) is grouped as "running".
+  const mainSignals = signals.filter((s) => s.isActionable && s.ageDays === 0);
+  const olderOpenSignals = signals.filter((s) => s.isActionable && s.ageDays !== 0);
+  const allRunningSignals = [...olderOpenSignals, ...runningSignals];
 
   function renderCard(s) {
     const pos = settings ? positionSize(s.entry, s.sl, settings.capital, settings.riskPercent) : null;
@@ -410,7 +414,7 @@ export default function SinyalPage() {
     <div>
       <div className="page-header card-row">
         <div>
-          <h1 className="page-title">Sinyal hari ini</h1>
+          <h1 className="page-title">Sinyal Saham Harian</h1>
           <p className="page-sub">
             {settings ? `Sisa slot: ${openSlots} dari ${settings.maxSlots}` : '...'}
           </p>
@@ -444,14 +448,15 @@ export default function SinyalPage() {
         <p className="muted">Tidak ada sinyal DAY TRADE aktif saat ini.</p>
       )}
 
+      <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>Sinyal hari ini ({mainSignals.length})</p>
       {mainSignals.map(renderCard)}
 
-      {runningSignals.length > 0 && (
+      {allRunningSignals.length > 0 && (
         <>
-          <p className="muted" style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>
-            Sedang berjalan ({runningSignals.length})
+          <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>
+            Sinyal running ({allRunningSignals.length})
           </p>
-          {runningSignals.map(renderCard)}
+          {allRunningSignals.map(renderCard)}
         </>
       )}
 

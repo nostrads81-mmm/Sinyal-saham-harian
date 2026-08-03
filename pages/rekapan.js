@@ -13,6 +13,12 @@ function pnlPercent(entry, exit) {
   return ((exit - entry) / entry) * 100;
 }
 
+// Catatan stores "Lot: 31" (set when recording the trade from Tab Sinyal).
+function parseLot(catatan) {
+  const match = String(catatan || '').match(/Lot:\s*(\d+)/i);
+  return match ? match[1] : null;
+}
+
 const STATUS_BADGE = {
   RUNNING: { cls: 'badge', label: 'running' },
   OPEN: { cls: 'badge', label: 'open' },
@@ -149,6 +155,7 @@ export default function RekapanPage() {
         const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
         const pnl = e.hargaExit ? pnlPercent(e.entry, e.hargaExit) : null;
         const isRunning = e.status === 'RUNNING' || e.status === 'OPEN';
+        const lot = parseLot(e.catatan);
         return (
           <div key={e.rowNumber} className="card">
             <div className="card-row">
@@ -158,7 +165,7 @@ export default function RekapanPage() {
               </span>
             </div>
             <p className="muted" style={{ marginTop: 2 }}>
-              Entry {e.entry?.toLocaleString('id-ID')} &middot; {e.tanggalEntry}
+              Entry {e.entry?.toLocaleString('id-ID')} &middot; {lot ? `${lot} lot` : '- lot'}
               {e.tanggalExit ? ` → exit ${e.tanggalExit}` : ''}
             </p>
             <p className="muted" style={{ marginTop: 2 }}>
