@@ -263,8 +263,13 @@ export default function SinyalPage() {
             )}
           </div>
         </div>
+        {s.ageDays !== null && (
+          <p className="muted" style={{ marginTop: 4 }}>
+            {s.ageDays === 0 ? 'Terbit hari ini' : `Terbit ${s.ageDays} hari lalu`}
+          </p>
+        )}
         {s.detailStatus && (
-          <p className="muted" style={{ marginTop: 4, lineHeight: 1.45 }}>{s.detailStatus}</p>
+          <p className="muted" style={{ marginTop: 2, lineHeight: 1.45 }}>{s.detailStatus}</p>
         )}
         {s.waitFor && (
           <p className="muted">Tunggu turun ke {s.waitFor} sebelum entry</p>
