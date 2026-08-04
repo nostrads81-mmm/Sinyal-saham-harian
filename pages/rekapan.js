@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken } from '../lib/auth';
-import { getJournalEntries, closeJournalEntry } from '../lib/sheets';
+import { getJournalEntries, closeJournalEntry, getSettings, ensureSheetsInitialized } from '../lib/sheets';
 
 function todayDDMMYYYY() {
   const d = new Date();
@@ -8,15 +8,33 @@ function todayDDMMYYYY() {
   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
 
-function pnlPercent(entry, exit) {
-  if (!entry || !exit) return null;
-  return ((exit - entry) / entry) * 100;
+function formatRupiah(n) {
+  return 'Rp' + Math.round(n).toLocaleString('id-ID');
 }
 
 // Catatan stores "Lot: 31" (set when recording the trade from Tab Sinyal).
 function parseLot(catatan) {
   const match = String(catatan || '').match(/Lot:\s*(\d+)/i);
-  return match ? match[1] : null;
+  return match ? Number(match[1]) : 0;
+}
+
+// Net P&L after Stockbit's buy/sell fees and stamp duty (materai) - not just
+// the raw price difference. Falls back to a fee-free estimate when the lot
+// wasn't recorded (older entries from before this was tracked).
+function computeNetPnl(entry, exit, lot, settings) {
+  if (!entry || !exit) return null;
+  const shares = lot * 100;
+  if (shares <= 0) {
+    return { pnlRp: null, pnlPercent: ((exit - entry) / entry) * 100, estimated: true };
+  }
+  const buyValue = entry * shares;
+  const sellValue = exit * shares;
+  const buyMateraiHit = buyValue > settings.materaiThreshold ? settings.materaiAmount : 0;
+  const sellMateraiHit = sellValue > settings.materaiThreshold ? settings.materaiAmount : 0;
+  const buyCost = buyValue * (1 + settings.buyFeePercent) + buyMateraiHit;
+  const sellProceeds = sellValue * (1 - settings.sellFeePercent) - sellMateraiHit;
+  const pnlRp = sellProceeds - buyCost;
+  return { pnlRp, pnlPercent: (pnlRp / buyCost) * 100, estimated: false };
 }
 
 const STATUS_BADGE = {
@@ -32,6 +50,7 @@ export default function RekapanPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [closingRow, setClosingRow] = useState(null);
@@ -60,8 +79,14 @@ export default function RekapanPage() {
     setError(null);
     (async () => {
       try {
-        const data = await getJournalEntries(token);
-        if (!cancelled) setEntries(data.reverse());
+        await ensureSheetsInitialized(token);
+        const [data, settingsData] = await Promise.all([
+          getJournalEntries(token),
+          getSettings(token),
+        ]);
+        if (cancelled) return;
+        setEntries(data.reverse());
+        setSettings(settingsData);
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -82,8 +107,9 @@ export default function RekapanPage() {
     setSaving(true);
     try {
       const exit = Number(exitPrice);
-      const pnl = pnlPercent(entry.entry, exit);
-      const status = pnl >= 0 ? 'CLOSE-PROFIT' : 'CLOSE-LOSS';
+      const lot = parseLot(entry.catatan);
+      const net = computeNetPnl(entry.entry, exit, lot, settings);
+      const status = net.pnlPercent >= 0 ? 'CLOSE-PROFIT' : 'CLOSE-LOSS';
       await closeJournalEntry(token, entry.rowNumber, {
         tanggalExit: `'${todayDDMMYYYY()}`,
         hargaExit: exit,
@@ -109,17 +135,20 @@ export default function RekapanPage() {
     );
   }
 
-  const closed = entries.filter((e) => e.status.startsWith('CLOSE'));
-  const wins = closed.filter((e) => e.status === 'CLOSE-PROFIT').length;
-  const losses = closed.filter((e) => e.status === 'CLOSE-LOSS').length;
+  const closed = settings ? entries.filter((e) => e.status.startsWith('CLOSE')) : [];
+  const closedNet = closed.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLot(e.catatan), settings));
+  const wins = closedNet.filter((n) => n && n.pnlPercent >= 0).length;
+  const losses = closedNet.filter((n) => n && n.pnlPercent < 0).length;
   const winRate = closed.length > 0 ? (wins / closed.length) * 100 : null;
-  const totalPnlPercent = closed.reduce((sum, e) => sum + (pnlPercent(e.entry, e.hargaExit) || 0), 0);
+  const totalPnlRp = closedNet.reduce((sum, n) => sum + (n?.pnlRp || 0), 0);
+  const totalPnlPercent = closedNet.reduce((sum, n) => sum + (n?.pnlPercent || 0), 0);
+  const anyEstimated = closedNet.some((n) => n?.estimated);
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Rekapan</h1>
-        <p className="page-sub">Jurnal day trade</p>
+        <p className="page-sub">Jurnal day trade &middot; P&amp;L sudah dikurangi fee &amp; materai</p>
       </div>
 
       <div className="stat-grid">
@@ -130,9 +159,9 @@ export default function RekapanPage() {
           </div>
         </div>
         <div className="stat-tile">
-          <div className="stat-label">Total P&L%</div>
-          <div className="stat-value" style={{ color: totalPnlPercent >= 0 ? '#4fd07e' : '#ff6b6b' }}>
-            {closed.length > 0 ? `${totalPnlPercent >= 0 ? '+' : ''}${totalPnlPercent.toFixed(2)}%` : '-'}
+          <div className="stat-label">Total P&L bersih</div>
+          <div className="stat-value" style={{ color: totalPnlRp >= 0 ? '#4fd07e' : '#ff6b6b', fontSize: 16 }}>
+            {closed.length > 0 ? `${totalPnlRp >= 0 ? '+' : ''}${formatRupiah(totalPnlRp)}` : '-'}
           </div>
         </div>
         <div className="stat-tile">
@@ -144,6 +173,12 @@ export default function RekapanPage() {
           <div className="stat-value">{losses}</div>
         </div>
       </div>
+      {closed.length > 0 && (
+        <p className="muted" style={{ marginTop: -10, marginBottom: 12 }}>
+          Total P&amp;L% bersih: {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+          {anyEstimated ? ' (sebagian estimasi - lot tidak tercatat)' : ''}
+        </p>
+      )}
 
       {loading && <p className="muted">Memuat jurnal...</p>}
       {error && <p className="muted" style={{ color: '#ff6b6b' }}>{error}</p>}
@@ -151,23 +186,28 @@ export default function RekapanPage() {
         <p className="muted">Belum ada transaksi tercatat. Catat dari Tab Sinyal setelah beli.</p>
       )}
 
-      {entries.map((e) => {
+      {settings && entries.map((e) => {
         const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
-        const pnl = e.hargaExit ? pnlPercent(e.entry, e.hargaExit) : null;
-        const isRunning = e.status === 'RUNNING' || e.status === 'OPEN';
         const lot = parseLot(e.catatan);
+        const net = e.hargaExit ? computeNetPnl(e.entry, e.hargaExit, lot, settings) : null;
+        const isRunning = e.status === 'RUNNING' || e.status === 'OPEN';
         return (
           <div key={e.rowNumber} className="card">
             <div className="card-row">
               <span style={{ fontSize: 15, fontWeight: 600 }}>{e.stock}</span>
               <span className={badge.cls}>
-                {pnl !== null ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%` : badge.label}
+                {net ? `${net.pnlPercent >= 0 ? '+' : ''}${net.pnlPercent.toFixed(2)}%` : badge.label}
               </span>
             </div>
             <p className="muted" style={{ marginTop: 2 }}>
               Entry {e.entry?.toLocaleString('id-ID')} &middot; {lot ? `${lot} lot` : '- lot'}
               {e.tanggalExit ? ` → exit ${e.tanggalExit}` : ''}
             </p>
+            {net && !net.estimated && (
+              <p className="muted" style={{ marginTop: 2, color: net.pnlRp >= 0 ? '#4fd07e' : '#ff6b6b' }}>
+                {net.pnlRp >= 0 ? '+' : ''}{formatRupiah(net.pnlRp)} bersih (sudah dikurangi fee &amp; materai)
+              </p>
+            )}
             <p className="muted" style={{ marginTop: 2 }}>
               SL <span style={{ color: '#ff6b6b' }}>{e.sl?.toLocaleString('id-ID') || '-'}</span>
               {' · '}TP1 <span style={{ color: '#4fd07e' }}>{e.tp1?.toLocaleString('id-ID') || '-'}</span>
