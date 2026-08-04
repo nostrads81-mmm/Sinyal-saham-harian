@@ -18,6 +18,20 @@ function parseLot(catatan) {
   return match ? Number(match[1]) : 0;
 }
 
+function parseDDMMYYYY(s) {
+  const match = String(s || '').trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!match) return null;
+  const [, dd, mm, yyyy] = match;
+  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+}
+
+function daysHeld(entryDate, exitDate) {
+  const from = parseDDMMYYYY(entryDate);
+  const to = parseDDMMYYYY(exitDate);
+  if (!from || !to) return null;
+  return Math.round((to.setHours(0, 0, 0, 0) - from.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24));
+}
+
 // Net P&L after Stockbit's buy/sell fees and stamp duty (materai) - not just
 // the raw price difference. Falls back to a fee-free estimate when the lot
 // wasn't recorded (older entries from before this was tracked).
@@ -57,6 +71,7 @@ export default function RekapanPage() {
   const [exitPrice, setExitPrice] = useState('');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const [expandedRow, setExpandedRow] = useState(null);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -136,6 +151,8 @@ export default function RekapanPage() {
   }
 
   const closed = settings ? entries.filter((e) => e.status.startsWith('CLOSE')) : [];
+  const runningEntries = settings ? entries.filter((e) => e.status === 'RUNNING' || e.status === 'OPEN') : [];
+  const closedEntries = closed;
   const closedNet = closed.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLot(e.catatan), settings));
   const wins = closedNet.filter((n) => n && n.pnlPercent >= 0).length;
   const losses = closedNet.filter((n) => n && n.pnlPercent < 0).length;
@@ -186,35 +203,25 @@ export default function RekapanPage() {
         <p className="muted">Belum ada transaksi tercatat. Catat dari Tab Sinyal setelah beli.</p>
       )}
 
-      {settings && entries.map((e) => {
+      {settings && runningEntries.map((e) => {
         const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
         const lot = parseLot(e.catatan);
-        const net = e.hargaExit ? computeNetPnl(e.entry, e.hargaExit, lot, settings) : null;
-        const isRunning = e.status === 'RUNNING' || e.status === 'OPEN';
         return (
           <div key={e.rowNumber} className="card">
             <div className="card-row">
               <span style={{ fontSize: 15, fontWeight: 600 }}>{e.stock}</span>
-              <span className={badge.cls}>
-                {net ? `${net.pnlPercent >= 0 ? '+' : ''}${net.pnlPercent.toFixed(2)}%` : badge.label}
-              </span>
+              <span className={badge.cls}>{badge.label}</span>
             </div>
             <p className="muted" style={{ marginTop: 2 }}>
-              Entry {e.entry?.toLocaleString('id-ID')} &middot; {lot ? `${lot} lot` : '- lot'}
-              {e.tanggalExit ? ` → exit ${e.tanggalExit}` : ''}
+              Entry {e.entry?.toLocaleString('id-ID')} &middot; {lot ? `${lot} lot` : '- lot'} &middot; {e.tanggalEntry}
             </p>
-            {net && !net.estimated && (
-              <p className="muted" style={{ marginTop: 2, color: net.pnlRp >= 0 ? '#4fd07e' : '#ff6b6b' }}>
-                {net.pnlRp >= 0 ? '+' : ''}{formatRupiah(net.pnlRp)} bersih (sudah dikurangi fee &amp; materai)
-              </p>
-            )}
             <p className="muted" style={{ marginTop: 2 }}>
               SL <span style={{ color: '#ff6b6b' }}>{e.sl?.toLocaleString('id-ID') || '-'}</span>
               {' · '}TP1 <span style={{ color: '#4fd07e' }}>{e.tp1?.toLocaleString('id-ID') || '-'}</span>
               {e.tp2 ? <> {' · '}TP2 <span style={{ color: '#4fd07e' }}>{e.tp2.toLocaleString('id-ID')}</span></> : null}
             </p>
 
-            {isRunning && closingRow !== e.rowNumber && (
+            {closingRow !== e.rowNumber && (
               <button className="btn" style={{ marginTop: 8, width: '100%' }} onClick={() => openCloseForm(e)}>
                 Tutup posisi
               </button>
@@ -247,6 +254,57 @@ export default function RekapanPage() {
           </div>
         );
       })}
+
+      {settings && closedEntries.length > 0 && (
+        <>
+          <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Sudah terjual</p>
+          {closedEntries.map((e) => {
+            const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
+            const lot = parseLot(e.catatan);
+            const net = computeNetPnl(e.entry, e.hargaExit, lot, settings);
+            const held = daysHeld(e.tanggalEntry, e.tanggalExit);
+            const expanded = expandedRow === e.rowNumber;
+            return (
+              <div
+                key={e.rowNumber}
+                className="card"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setExpandedRow(expanded ? null : e.rowNumber)}
+              >
+                <div className="card-row">
+                  <span style={{ fontSize: 15, fontWeight: 600 }}>{e.stock}</span>
+                  <span className={badge.cls}>
+                    {net ? `${net.pnlPercent >= 0 ? '+' : ''}${net.pnlPercent.toFixed(2)}%` : badge.label}
+                  </span>
+                </div>
+                <p className="muted" style={{ marginTop: 2 }}>
+                  {e.tanggalEntry} &rarr; {e.tanggalExit}
+                  {held !== null ? ` · ${held} hari` : ''}
+                </p>
+
+                {expanded && (
+                  <>
+                    <p className="muted" style={{ marginTop: 6 }}>
+                      Entry {e.entry?.toLocaleString('id-ID')} &middot; Exit {e.hargaExit?.toLocaleString('id-ID')}
+                      &middot; {lot ? `${lot} lot` : '- lot'}
+                    </p>
+                    {net && !net.estimated && (
+                      <p className="muted" style={{ marginTop: 2, color: net.pnlRp >= 0 ? '#4fd07e' : '#ff6b6b' }}>
+                        {net.pnlRp >= 0 ? '+' : ''}{formatRupiah(net.pnlRp)} bersih (sudah dikurangi fee &amp; materai)
+                      </p>
+                    )}
+                    <p className="muted" style={{ marginTop: 2 }}>
+                      SL <span style={{ color: '#ff6b6b' }}>{e.sl?.toLocaleString('id-ID') || '-'}</span>
+                      {' · '}TP1 <span style={{ color: '#4fd07e' }}>{e.tp1?.toLocaleString('id-ID') || '-'}</span>
+                      {e.tp2 ? <> {' · '}TP2 <span style={{ color: '#4fd07e' }}>{e.tp2.toLocaleString('id-ID')}</span></> : null}
+                    </p>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
