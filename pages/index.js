@@ -506,7 +506,7 @@ export default function SinyalPage() {
         </>
       )}
 
-      <button className="btn" style={{ marginTop: 16, width: '100%' }} onClick={signOut}>
+      <button className="btn" style={{ marginTop: 16, width: '100%' }} onClick={() => { signOut(); setToken(null); }}>
         Keluar
       </button>
     </div>
