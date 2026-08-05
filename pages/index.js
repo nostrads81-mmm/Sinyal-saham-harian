@@ -48,6 +48,7 @@ export default function SinyalPage() {
   const [recordingStock, setRecordingStock] = useState(null);
   const [fillPrice, setFillPrice] = useState('');
   const [fillLot, setFillLot] = useState('');
+  const [tvOpen, setTvOpen] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const savingRef = useRef(false);
@@ -232,6 +233,14 @@ export default function SinyalPage() {
     navigator.clipboard.writeText(buildAiPrompt([signal]));
   }
 
+  function toggleTv(cardKey) {
+    setTvOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardKey)) next.delete(cardKey); else next.add(cardKey);
+      return next;
+    });
+  }
+
   function hapusSignal(s) {
     if (s.source === 'wa') {
       removeWaSignal(s.stock);
@@ -262,8 +271,9 @@ export default function SinyalPage() {
 
   function renderCard(s) {
     const pos = s.position || null;
+    const cardKey = s.stock + s.status;
     return (
-      <div key={s.stock + s.status} className={`card ${s.willSkip ? 'skip-card' : ''}`}>
+      <div key={cardKey} className={`card ${s.willSkip ? 'skip-card' : ''}`}>
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -272,7 +282,9 @@ export default function SinyalPage() {
               <span className="badge badge-warning">skip · modal habis</span>
             )}
             {!s.willSkip && <span className="badge">skor {s.score.toFixed(2)}</span>}
-            <TradingViewQuote stock={s.stock} />
+            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => toggleTv(cardKey)}>
+              TradingView
+            </button>
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
               copy
             </button>
@@ -281,6 +293,11 @@ export default function SinyalPage() {
             </button>
           </div>
         </div>
+        {tvOpen.has(cardKey) && (
+          <div style={{ marginTop: 8 }}>
+            <TradingViewQuote stock={s.stock} />
+          </div>
+        )}
         {s.ageDays !== null && (
           <p className="muted" style={{ marginTop: 4 }}>
             {s.ageDays === 0 ? 'Terbit hari ini' : `Terbit ${s.ageDays} hari lalu`}
