@@ -251,7 +251,7 @@ export default function SinyalPage() {
     };
     const skipLabel = SKIP_LABELS[s.skipReason] || 'skip';
     return (
-      <div key={s.stock + s.status} className={`card ${((s.willSkip && s.skipReason !== 'sudah-terbeli') || (!s.isOpen && !s.owned)) ? 'skip-card' : ''}`}>
+      <div key={s.stock + s.status} className={`card ${(s.willSkip && s.skipReason !== 'sudah-terbeli') ? 'skip-card' : ''}`}>
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
