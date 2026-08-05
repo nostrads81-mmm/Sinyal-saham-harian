@@ -7,7 +7,7 @@ import {
 import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
 import SettingsSheet from '../components/SettingsSheet';
-import { getDismissedSignals, dismissSignal, pruneStaleDismissals, dismissedKey } from '../lib/dismissedSignals';
+import { getDismissedSignals, dismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
 
 function formatRupiah(n) {
@@ -114,7 +114,7 @@ export default function SinyalPage() {
         // Already-bought (journaled) and dismissed signals don't belong in
         // this list anymore - the journal/Rekapan tab is where owned
         // positions live, and a dismissed signal was explicitly hidden.
-        setSignals(ranked.filter((s) => !s.owned && !dismissedSet.has(dismissedKey(s.stock, s.date))));
+        setSignals(ranked.filter((s) => !s.owned && !dismissedSet.has(s.stock.toUpperCase())));
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -262,7 +262,7 @@ export default function SinyalPage() {
     if (s.source === 'wa') {
       removeWaSignal(s.stock);
     } else {
-      dismissSignal(s.stock, s.date);
+      dismissSignal(s.stock);
     }
     setRefreshKey((k) => k + 1);
   }
