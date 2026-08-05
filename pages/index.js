@@ -7,6 +7,7 @@ import {
 import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
 import { getDismissedSignals, dismissSignal, pruneStaleDismissals, dismissedKey } from '../lib/dismissedSignals';
+import TradingViewQuote from '../components/TradingViewQuote';
 
 function formatRupiah(n) {
   return 'Rp' + Math.round(n).toLocaleString('id-ID');
@@ -271,6 +272,7 @@ export default function SinyalPage() {
               <span className="badge badge-warning">skip · modal habis</span>
             )}
             {!s.willSkip && <span className="badge">skor {s.score.toFixed(2)}</span>}
+            <TradingViewQuote stock={s.stock} />
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
               copy
             </button>
