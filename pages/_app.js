@@ -1,8 +1,14 @@
+import { useEffect } from 'react';
 import Head from 'next/head';
 import BottomNav from '../components/BottomNav';
+import { applyTheme, getStoredTheme } from '../lib/theme';
 import '../styles/globals.css';
 
 export default function App({ Component, pageProps }) {
+  useEffect(() => {
+    applyTheme(getStoredTheme());
+  }, []);
+
   return (
     <>
       <Head>
