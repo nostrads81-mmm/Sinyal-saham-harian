@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
-  getValues, appendValues, ensureSheetsInitialized, getSettings, getInvestedCapital, getJournaledStocks,
+  getValues, appendValues, ensureSheetsInitialized, getSettings, updateSettings, getInvestedCapital, getJournaledStocks,
   getActiveJournalCount, APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
+import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, pruneStaleDismissals, dismissedKey } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
 
@@ -57,6 +58,9 @@ export default function SinyalPage() {
   const [waExtractError, setWaExtractError] = useState(null);
   const [waReview, setWaReview] = useState(null);
   const waPasteZoneRef = useRef(null);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -222,6 +226,19 @@ export default function SinyalPage() {
     }
     setWaReview(null);
     setRefreshKey((k) => k + 1);
+  }
+
+  async function saveSettings({ capital, maxSlots }) {
+    setSettingsSaving(true);
+    try {
+      await updateSettings(token, { capital, maxSlots });
+      setSettingsOpen(false);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSettingsSaving(false);
+    }
   }
 
   function copyAll() {
@@ -487,8 +504,20 @@ export default function SinyalPage() {
             &#8635;
           </button>
           <button className="btn" onClick={copyAll}>Copy semua</button>
+          <button className="btn icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Pengaturan">
+            &#9881;
+          </button>
         </div>
       </div>
+
+      <SettingsSheet
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        capital={settings ? settings.capital : 0}
+        maxSlots={settings ? settings.maxSlots : 0}
+        onSave={saveSettings}
+        saving={settingsSaving}
+      />
 
       <div
         ref={waPasteZoneRef}

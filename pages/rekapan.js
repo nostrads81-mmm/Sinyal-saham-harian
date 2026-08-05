@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken } from '../lib/auth';
-import { getJournalEntries, closeJournalEntry, getSettings, ensureSheetsInitialized } from '../lib/sheets';
+import { getJournalEntries, closeJournalEntry, getSettings, updateSettings, ensureSheetsInitialized } from '../lib/sheets';
+import SettingsSheet from '../components/SettingsSheet';
 
 function todayDDMMYYYY() {
   const d = new Date();
@@ -73,6 +74,9 @@ export default function RekapanPage() {
   const savingRef = useRef(false);
   const [expandedRow, setExpandedRow] = useState(null);
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
   useEffect(() => {
     setToken(getStoredToken());
   }, []);
@@ -140,6 +144,19 @@ export default function RekapanPage() {
     }
   }
 
+  async function saveSettings({ capital, maxSlots }) {
+    setSettingsSaving(true);
+    try {
+      await updateSettings(token, { capital, maxSlots });
+      setSettingsOpen(false);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
   if (!token) {
     return (
       <div className="center-box">
@@ -163,10 +180,24 @@ export default function RekapanPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">Rekapan</h1>
-        <p className="page-sub">Jurnal day trade &middot; P&amp;L sudah dikurangi fee &amp; materai</p>
+      <div className="page-header card-row">
+        <div>
+          <h1 className="page-title">Rekapan</h1>
+          <p className="page-sub">Jurnal day trade &middot; P&amp;L sudah dikurangi fee &amp; materai</p>
+        </div>
+        <button className="btn icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Pengaturan">
+          &#9881;
+        </button>
       </div>
+
+      <SettingsSheet
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        capital={settings ? settings.capital : 0}
+        maxSlots={settings ? settings.maxSlots : 0}
+        onSave={saveSettings}
+        saving={settingsSaving}
+      />
 
       <div className="stat-grid">
         <div className="stat-tile">

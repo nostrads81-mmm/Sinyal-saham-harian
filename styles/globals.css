@@ -20,6 +20,28 @@
   --warning-bg: #2c220a;
   --radius: 14px;
   --radius-sm: 9px;
+  --nav-bg: rgba(20, 22, 30, 0.92);
+}
+
+html[data-theme="light"] {
+  --nav-bg: rgba(255, 255, 255, 0.92);
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --surface-2: #eef0f5;
+  --border: #e2e5ec;
+  --border-strong: #ccd1dc;
+  --text: #14161f;
+  --text-muted: #5c6478;
+  --text-faint: #8a90a3;
+  --accent: #3568e0;
+  --accent-strong: #2a54c2;
+  --accent-ink: #ffffff;
+  --success: #0a9d5c;
+  --success-bg: #e5f6ee;
+  --danger: #d92a4c;
+  --danger-bg: #fdeaee;
+  --warning: #a15e00;
+  --warning-bg: #fbf0dc;
 }
 
 html, body {
@@ -58,7 +80,7 @@ a { color: inherit; text-decoration: none; }
   max-width: 480px;
   display: flex;
   gap: 4px;
-  background: rgba(20, 22, 30, 0.92);
+  background: var(--nav-bg);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--border);
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0));
@@ -183,3 +205,70 @@ textarea:focus, input:focus {
   outline: none;
   border-color: var(--accent);
 }
+
+.icon-btn { padding: 9px 11px; font-size: 15px; line-height: 1; }
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-top: 1px solid var(--border-strong);
+  border-radius: 20px 20px 0 0;
+  padding: 10px 18px calc(20px + env(safe-area-inset-bottom, 0));
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+  margin: 2px auto 14px;
+}
+
+.sheet-title { font-size: 16px; font-weight: 700; margin: 0 0 16px; letter-spacing: -0.01em; }
+
+.field { margin-bottom: 14px; }
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+.seg-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 0;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.seg-btn.active { background: var(--accent); color: var(--accent-ink); }
+
+.sheet-actions { display: flex; gap: 8px; margin-top: 20px; }
+.sheet-actions .btn { flex: 1; }
