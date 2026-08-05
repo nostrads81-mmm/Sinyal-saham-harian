@@ -89,7 +89,7 @@ export default function SinyalPage() {
         setInvestedCapital(invested);
         setJournaledStocks(journaled);
         setUsedSlots(occupiedSlots);
-        const parsed = parseWatchlistRows(rawRows, { tradeType: 'DAY TRADE' });
+        const parsed = parseWatchlistRows(rawRows).filter((s) => s.ageDays === 0);
 
         const waRaw = getWaSignals();
         const waBuilt = waRaw.map(buildWaSignal);
@@ -234,7 +234,9 @@ export default function SinyalPage() {
   }
 
   const remainingCapital = settings ? Math.max(settings.capital - investedCapital, 0) : null;
-  const { today: mainSignals, previous: previousSignals } = partitionByDate(signals);
+  const { today: mainSignals } = partitionByDate(signals);
+  const dayTradeSignals = mainSignals.filter((s) => s.tradeType === 'DAY TRADE');
+  const swingTradeSignals = mainSignals.filter((s) => s.tradeType === 'SWING TRADE');
 
   function renderCard(s) {
     const pos = s.position || null;
@@ -492,19 +494,16 @@ export default function SinyalPage() {
       {error && <p className="muted" style={{ color: '#ff6b6b' }}>{error}</p>}
 
       {!loading && signals.length === 0 && !error && (
-        <p className="muted">Tidak ada sinyal DAY TRADE aktif saat ini.</p>
+        <p className="muted">Belum ada sinyal baru hari ini.</p>
       )}
 
-      <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>Sinyal hari ini</p>
-      {mainSignals.length === 0 && <p className="muted">Belum ada sinyal baru hari ini.</p>}
-      {mainSignals.map(renderCard)}
+      <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>Day Trade</p>
+      {dayTradeSignals.length === 0 && <p className="muted">Belum ada sinyal day trade hari ini.</p>}
+      {dayTradeSignals.map(renderCard)}
 
-      {previousSignals.length > 0 && (
-        <>
-          <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Sinyal Kemarin</p>
-          {previousSignals.map(renderCard)}
-        </>
-      )}
+      <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Swing Trade</p>
+      {swingTradeSignals.length === 0 && <p className="muted">Belum ada sinyal swing trade hari ini.</p>}
+      {swingTradeSignals.map(renderCard)}
 
       <button className="btn" style={{ marginTop: 16, width: '100%' }} onClick={() => { signOut(); setToken(null); }}>
         Keluar
