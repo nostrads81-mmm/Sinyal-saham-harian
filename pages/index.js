@@ -4,7 +4,7 @@ import {
   getValues, appendValues, ensureSheetsInitialized, getSettings, getInvestedCapital, getJournaledStocks,
   getActiveJournalCount, APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
-import { parseWatchlistRows, rankSignals, partitionByDate, buildWaSignal, mergeSignalSources } from '../lib/scoring';
+import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
 
 function formatRupiah(n) {
@@ -89,7 +89,7 @@ export default function SinyalPage() {
         setInvestedCapital(invested);
         setJournaledStocks(journaled);
         setUsedSlots(occupiedSlots);
-        const parsed = parseWatchlistRows(rawRows).filter((s) => s.ageDays === 0);
+        const parsed = parseWatchlistRows(rawRows);
 
         const waRaw = getWaSignals();
         const waBuilt = waRaw.map(buildWaSignal);
@@ -234,9 +234,13 @@ export default function SinyalPage() {
   }
 
   const remainingCapital = settings ? Math.max(settings.capital - investedCapital, 0) : null;
-  const { today: mainSignals } = partitionByDate(signals);
-  const dayTradeSignals = mainSignals.filter((s) => s.tradeType === 'DAY TRADE');
-  const swingTradeSignals = mainSignals.filter((s) => s.tradeType === 'SWING TRADE');
+  // No date split anymore - a signal stays listed for as long as it's still
+  // OPEN/valid in the sheet, not just on the day it was first published.
+  // Not-skipped candidates first, then best score first.
+  const sortBest = (a, b) => (Number(a.willSkip) - Number(b.willSkip)) || (b.score - a.score);
+  const sortedSignals = [...signals].sort(sortBest);
+  const dayTradeSignals = sortedSignals.filter((s) => s.tradeType === 'DAY TRADE');
+  const swingTradeSignals = sortedSignals.filter((s) => s.tradeType === 'SWING TRADE');
 
   function renderCard(s) {
     const pos = s.position || null;
