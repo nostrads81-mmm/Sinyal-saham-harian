@@ -6,6 +6,7 @@ import {
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
+import { getDismissedSignals, dismissSignal, pruneStaleDismissals, dismissedKey } from '../lib/dismissedSignals';
 
 function formatRupiah(n) {
   return 'Rp' + Math.round(n).toLocaleString('id-ID');
@@ -97,10 +98,17 @@ export default function SinyalPage() {
         if (staleWaStocks.length > 0) pruneStaleWaSignals(staleWaStocks);
 
         const remainingCapital = Math.max(settingsData.capital - invested, 0);
-        setSignals(rankSignals(combined, {
+        const ranked = rankSignals(combined, {
           capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital,
           maxSlots: settingsData.maxSlots, occupiedSlots, journaledStocks: journaled,
-        }));
+        });
+
+        pruneStaleDismissals();
+        const dismissedSet = new Set(getDismissedSignals());
+        // Already-bought (journaled) and dismissed signals don't belong in
+        // this list anymore - the journal/Rekapan tab is where owned
+        // positions live, and a dismissed signal was explicitly hidden.
+        setSignals(ranked.filter((s) => !s.owned && !dismissedSet.has(dismissedKey(s.stock, s.date))));
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -223,6 +231,15 @@ export default function SinyalPage() {
     navigator.clipboard.writeText(buildAiPrompt([signal]));
   }
 
+  function hapusSignal(s) {
+    if (s.source === 'wa') {
+      removeWaSignal(s.stock);
+    } else {
+      dismissSignal(s.stock, s.date);
+    }
+    setRefreshKey((k) => k + 1);
+  }
+
   if (!token) {
     return (
       <div className="center-box">
@@ -244,38 +261,22 @@ export default function SinyalPage() {
 
   function renderCard(s) {
     const pos = s.position || null;
-    const SKIP_LABELS = {
-      'sudah-terbeli': 'sudah dibeli',
-      'slot-penuh': 'skip · slot penuh',
-      'modal-habis': 'skip · modal habis',
-    };
-    const skipLabel = SKIP_LABELS[s.skipReason] || 'skip';
     return (
-      <div key={s.stock + s.status} className={`card ${(s.willSkip && s.skipReason !== 'sudah-terbeli') ? 'skip-card' : ''}`}>
+      <div key={s.stock + s.status} className={`card ${s.willSkip ? 'skip-card' : ''}`}>
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
-            {s.owned && (
-              <>
-                <span className="badge badge-success">sudah dibeli</span>
-                <span className="badge">skor {s.score.toFixed(2)}</span>
-              </>
+            {s.willSkip && s.skipReason === 'modal-habis' && (
+              <span className="badge badge-warning">skip · modal habis</span>
             )}
-            {!s.owned && s.isOpen && s.willSkip && (
-              <span className="badge badge-warning">{skipLabel}</span>
-            )}
-            {!s.owned && s.isOpen && !s.willSkip && (
-              <span className="badge">skor {s.score.toFixed(2)}</span>
-            )}
-            {!s.owned && !s.isOpen && (
-              <span className="badge" style={{ background: '#20232e', color: '#8b8fa3' }}>bukan buat dibeli</span>
-            )}
-            {s.isOpen && !s.willSkip && (
-              <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
-                copy
-              </button>
-            )}
+            {!s.willSkip && <span className="badge">skor {s.score.toFixed(2)}</span>}
+            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
+              copy
+            </button>
+            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => hapusSignal(s)}>
+              hapus
+            </button>
           </div>
         </div>
         {s.ageDays !== null && (
@@ -295,69 +296,59 @@ export default function SinyalPage() {
         {s.adjusted && (
           <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
         )}
-        {(!s.willSkip || s.owned || !s.isOpen) && (
-          <>
-            <div className="metric-grid">
-              <div className="metric-cell">
-                <div className="metric-label">Entry</div>
-                <div className="metric-value">{s.entry.toLocaleString('id-ID')}</div>
-              </div>
-              <div className="metric-cell">
-                <div className="metric-label">SL</div>
-                <div className="metric-value" style={{ color: '#ff6b6b' }}>{s.sl?.toLocaleString('id-ID')}</div>
-                {pos && pos.lembar > 0 && (
-                  <div className="metric-sub" style={{ color: '#ff6b6b' }}>
-                    -{formatRupiah((s.entry - s.sl) * pos.lembar)}
-                  </div>
-                )}
-              </div>
-              <div className="metric-cell">
-                <div className="metric-label">TP1</div>
-                <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</div>
-                {pos && pos.lembar > 0 && (
-                  <div className="metric-sub" style={{ color: '#4fd07e' }}>
-                    +{formatRupiah((s.tp1 - s.entry) * pos.lembar)}
-                  </div>
-                )}
-              </div>
-              {(s.tp2 || s.tp3) && (
-                <>
-                  <div className="metric-cell">
-                    <div className="metric-label">TP2</div>
-                    <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</div>
-                  </div>
-                  <div className="metric-cell">
-                    <div className="metric-label">TP3</div>
-                    <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</div>
-                  </div>
-                  <div className="metric-cell" />
-                </>
+        <>
+          <div className="metric-grid">
+            <div className="metric-cell">
+              <div className="metric-label">Entry</div>
+              <div className="metric-value">{s.entry.toLocaleString('id-ID')}</div>
+            </div>
+            <div className="metric-cell">
+              <div className="metric-label">SL</div>
+              <div className="metric-value" style={{ color: '#ff6b6b' }}>{s.sl?.toLocaleString('id-ID')}</div>
+              {pos && pos.lembar > 0 && (
+                <div className="metric-sub" style={{ color: '#ff6b6b' }}>
+                  -{formatRupiah((s.entry - s.sl) * pos.lembar)}
+                </div>
               )}
             </div>
-            {s.isOpen && !s.owned && pos && (
-              <div className="position-box">
-                <span className="muted">Saran posisi</span>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>
-                  {formatRupiah(pos.rupiah)} <span className="muted" style={{ fontWeight: 500 }}>· {Math.round(pos.lembar / 100)} lot</span>
-                </span>
-              </div>
+            <div className="metric-cell">
+              <div className="metric-label">TP1</div>
+              <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</div>
+              {pos && pos.lembar > 0 && (
+                <div className="metric-sub" style={{ color: '#4fd07e' }}>
+                  +{formatRupiah((s.tp1 - s.entry) * pos.lembar)}
+                </div>
+              )}
+            </div>
+            {(s.tp2 || s.tp3) && (
+              <>
+                <div className="metric-cell">
+                  <div className="metric-label">TP2</div>
+                  <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</div>
+                </div>
+                <div className="metric-cell">
+                  <div className="metric-label">TP3</div>
+                  <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</div>
+                </div>
+                <div className="metric-cell" />
+              </>
             )}
-          </>
-        )}
+          </div>
+          {s.isOpen && pos && pos.rupiah > 0 && (
+            <div className="position-box">
+              <span className="muted">Saran posisi</span>
+              <span style={{ fontWeight: 700, fontSize: 14 }}>
+                {formatRupiah(pos.rupiah)} <span className="muted" style={{ fontWeight: 500 }}>· {Math.round(pos.lembar / 100)} lot</span>
+              </span>
+            </div>
+          )}
+        </>
 
         {s.isOpen && !s.willSkip && recordingStock !== s.stock && (
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button className="btn" style={{ flex: 1 }} onClick={() => openRecordForm(s, pos)}>
               Sudah beli, catat ke jurnal
             </button>
-            {s.source === 'wa' && (
-              <button
-                className="btn"
-                onClick={() => { removeWaSignal(s.stock); setRefreshKey((k) => k + 1); }}
-              >
-                hapus
-              </button>
-            )}
           </div>
         )}
 
