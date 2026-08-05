@@ -294,7 +294,7 @@ export default function SinyalPage() {
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {s.source === 'wa' && <span className="badge" style={{ background: '#1f2a1c', color: '#8fd15c' }}>dari WA</span>}
+            {s.source === 'wa' && <span className="badge badge-wa">dari WA</span>}
             {s.willSkip && s.skipReason === 'modal-habis' && (
               <span className="badge badge-warning">skip · modal habis</span>
             )}
