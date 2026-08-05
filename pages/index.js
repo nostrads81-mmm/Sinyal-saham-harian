@@ -171,8 +171,10 @@ export default function SinyalPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal membaca gambar');
-      const onlyDayTrade = (data.signals || []).filter((s) => s.tradeType === 'DAY TRADE');
-      setWaReview(onlyDayTrade);
+      const validSignals = (data.signals || []).filter(
+        (s) => s.tradeType === 'DAY TRADE' || s.tradeType === 'SWING TRADE'
+      );
+      setWaReview(validSignals);
     } catch (err) {
       setWaExtractError(err.message);
     } finally {
@@ -215,6 +217,7 @@ export default function SinyalPage() {
     for (const s of waReview) {
       addWaSignal({
         stock: s.stock,
+        tradeType: s.tradeType === 'SWING TRADE' ? 'SWING TRADE' : 'DAY TRADE',
         buyLow: Number(s.buyLow),
         buyHigh: Number(s.buyHigh),
         sl: Number(s.sl),
@@ -433,7 +436,7 @@ export default function SinyalPage() {
         </div>
 
         {waReview.length === 0 && (
-          <p className="muted">Tidak ada sinyal DAY TRADE yang terbaca dari screenshot ini.</p>
+          <p className="muted">Tidak ada sinyal yang terbaca dari screenshot ini.</p>
         )}
 
         {waReview.map((s, i) => (
