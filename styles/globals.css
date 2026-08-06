@@ -23,6 +23,15 @@
   --nav-bg: rgba(15, 18, 25, 0.94);
   --badge-bg: rgba(232, 176, 75, 0.16);
   --badge-ink: #f4c877;
+  --badge-border: rgba(232, 176, 75, 0.28);
+  /* Score badge is always gold, in both themes and regardless of the accent
+     color - it's a fixed "mark of quality", not something that should blend
+     into whatever the current theme's accent happens to be. */
+  --score-gold-light: #f4cd7c;
+  --score-gold-mid: #e8b04b;
+  --score-gold-dark: #b8862f;
+  --score-gold-ink: #241800;
+  --score-gold-ring: rgba(232, 176, 75, 0.35);
 }
 
 html[data-theme="light"] {
@@ -35,8 +44,8 @@ html[data-theme="light"] {
   --text: #14161f;
   --text-muted: #4c5468;
   --text-faint: #737b90;
-  --accent: #a66a00;
-  --accent-strong: #8a5800;
+  --accent: #14b8a6;
+  --accent-strong: #0d9488;
   --accent-ink: #ffffff;
   --success: #0a9d5c;
   --success-bg: #e5f6ee;
@@ -44,8 +53,9 @@ html[data-theme="light"] {
   --danger-bg: #fdeaee;
   --warning: #a15e00;
   --warning-bg: #fbf0dc;
-  --badge-bg: rgba(166, 106, 0, 0.12);
-  --badge-ink: #8a5800;
+  --badge-bg: rgba(20, 184, 166, 0.14);
+  --badge-ink: #0d9488;
+  --badge-border: rgba(20, 184, 166, 0.3);
 }
 
 html, body {
@@ -208,36 +218,36 @@ a { color: inherit; text-decoration: none; }
 .badge-danger { background: var(--danger-bg); color: var(--danger); }
 .badge-warning { background: var(--warning-bg); color: var(--warning); }
 
-/* Score shown as a compact chip (number + label stacked) instead of a thin
-   pill - bigger, bolder, and immediately readable at a glance. */
+/* Score shown as a solid gold coin (number + label stacked) instead of a
+   thin pill - bigger, bolder, and reads as a fixed mark of quality that
+   doesn't change color with the theme's accent. */
 .score-chip {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 50px;
-  padding: 5px 10px;
-  border-radius: 12px;
-  background: var(--badge-bg);
-  border: 1px solid rgba(232, 176, 75, 0.35);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   flex-shrink: 0;
+  background: radial-gradient(circle at 32% 28%, var(--score-gold-light), var(--score-gold-mid) 55%, var(--score-gold-dark) 100%);
+  box-shadow: 0 0 0 1px var(--score-gold-ring), 0 2px 6px rgba(0, 0, 0, 0.28);
 }
-html[data-theme="light"] .score-chip { border-color: rgba(166, 106, 0, 0.3); }
 .score-chip .score-num {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
-  color: var(--badge-ink);
+  color: var(--score-gold-ink);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 .score-chip .score-lbl {
-  font-size: 9px;
+  font-size: 7.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--badge-ink);
-  opacity: 0.8;
-  margin-top: 2px;
+  letter-spacing: 0.05em;
+  color: var(--score-gold-ink);
+  opacity: 0.85;
+  margin-top: 1px;
 }
 
 .muted { color: var(--text-muted); font-size: 13px; }
@@ -247,43 +257,78 @@ html[data-theme="light"] .score-chip { border-color: rgba(166, 106, 0, 0.3); }
 .text-danger { color: var(--danger); }
 .text-success { color: var(--success); }
 
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+/* Price range bar: a single visual line showing where SL / entry / TP sit
+   relative to each other, instead of three disconnected boxes - reads
+   faster at a glance since the relative distances are visible, not just
+   the raw numbers. Segment widths are computed inline from the actual
+   prices (see renderCard), this just styles the pieces. */
+.range-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+  display: flex;
   margin-top: 13px;
 }
-.metric-cell {
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: 9px 10px;
-  border-top: 3px solid var(--border-strong);
+.range-seg { height: 100%; }
+.range-seg.sl { background: var(--danger); }
+.range-seg.mid { background: var(--border-strong); }
+.range-seg.tp { background: var(--success); }
+.range-seg.tp-beyond { background: var(--success); opacity: 0.32; }
+.range-marker {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 14px;
+  background: var(--text);
+  border-radius: 1px;
 }
-.metric-cell.sl { border-top-color: var(--danger); }
-.metric-cell.tp { border-top-color: var(--success); }
-.metric-label { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
-.metric-value {
-  font-size: 16px;
+.range-labels {
+  display: flex;
+  margin-top: 8px;
+  gap: 4px;
+}
+.range-label { flex: 1; min-width: 0; text-align: center; }
+.range-label:first-child { text-align: left; }
+.range-label:last-child { text-align: right; }
+.range-label .metric-label { display: block; }
+.range-label .metric-value {
+  font-size: 15px;
   font-weight: 800;
-  margin-top: 3px;
+  margin-top: 1px;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
+.range-label .metric-sub { font-size: 10.5px; font-weight: 600; margin-top: 1px; }
+.range-label.sl .metric-value, .range-label.sl .metric-sub { color: var(--danger); }
+.range-label.tp .metric-value, .range-label.tp .metric-sub { color: var(--success); }
+.metric-label { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 .metric-sub { font-size: 10.5px; font-weight: 600; margin-top: 2px; }
-.metric-value.sl, .metric-sub.sl { color: var(--danger); }
-.metric-value.tp, .metric-sub.tp { color: var(--success); }
 
 .position-box {
+  margin-top: 10px;
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+}
+.position-box .pb-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 8px;
-  margin-top: 10px;
-  padding: 11px 13px;
-  border-radius: var(--radius-sm);
-  background: var(--badge-bg);
-  border: 1px solid rgba(232, 176, 75, 0.28);
+}
+/* Adjustment note (lot capped by remaining capital) goes on its own line
+   below the amount+lot row, inside the same box - it's a secondary caveat,
+   not part of the headline number. */
+.position-box .pb-note {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warning);
+  margin-top: 6px;
 }
 
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
