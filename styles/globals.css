@@ -78,6 +78,9 @@ a { color: inherit; text-decoration: none; }
   background:
     radial-gradient(700px 300px at 15% -80px, rgba(232, 176, 75, 0.08), transparent 70%),
     var(--bg);
+  /* Inter (set via next/font on this element, see pages/_app.js) with the
+     system-font stack as fallback while it loads / if it fails. */
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .app-main {
