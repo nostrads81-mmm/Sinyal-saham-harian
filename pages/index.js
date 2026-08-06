@@ -619,9 +619,15 @@ export default function SinyalPage() {
               </div>
               <span className="slot-pill">Slot {usedSlots}/{settings.maxSlots}</span>
             </div>
-            <div className="hero-sub">
-              <span className="hero-sub-item">Terpakai <b>{formatRupiah(investedCapital)}</b></span>
-              <span className="hero-sub-item">Total modal <b>{formatRupiah(settings.capital)}</b></span>
+            <div className="sub-boxes">
+              <div className="sub-box">
+                <div className="sub-box-label">Terpakai</div>
+                <div className="sub-box-value">{formatRupiah(investedCapital)}</div>
+              </div>
+              <div className="sub-box">
+                <div className="sub-box-label">Total modal</div>
+                <div className="sub-box-value">{formatRupiah(settings.capital)}</div>
+              </div>
             </div>
           </>
         ) : (
