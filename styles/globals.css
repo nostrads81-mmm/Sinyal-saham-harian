@@ -55,12 +55,6 @@ html, body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  /* Belt-and-suspenders against any child overflowing its container width -
-     without this, one too-wide element (e.g. an unbroken long number) lets
-     the whole page pan sideways on mobile instead of just wrapping/clipping
-     locally. */
-  overflow-x: hidden;
-  width: 100%;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -110,7 +104,22 @@ a { color: inherit; text-decoration: none; }
 .nav-icon { display: block; font-size: 19px; margin-bottom: 2px; }
 .nav-label { font-weight: 600; }
 
-.page-header { margin-bottom: 16px; }
+.page-header {
+  /* Stays put while the card list scrolls underneath it, instead of
+     scrolling away with the rest of the page. Negative side margins cancel
+     .app-main's own padding so the sticky background reaches edge-to-edge
+     (otherwise a 16px strip of scrolling content would peek out on each
+     side while it's stuck). Top padding adds the safe-area inset on top of
+     the original 20px gap, so on a notched phone the title sits clear of
+     the status bar once stuck at the very top instead of sliding under it. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: -20px -16px 16px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
 .page-title { font-size: 21px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
 .page-sub { font-size: 13px; color: var(--text-muted); margin: 3px 0 0; }
 
