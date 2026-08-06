@@ -37,6 +37,26 @@ function formatRupiah(n) {
   return 'Rp' + Math.round(n).toLocaleString('id-ID');
 }
 
+// Segment widths (as flex-grow numbers) for the SL-entry-TP1-TP2 price range
+// bar, proportional to the actual price gaps so the bar visually reflects
+// how far each level sits from the others, not just evenly-spaced ticks.
+// A decorative "beyond TP" filler segment is appended so the bar doesn't
+// end abruptly right at the last known target.
+function buildRangeBar(sl, entry, tp1, tp2) {
+  const slToEntry = Math.max(entry - sl, 0.01);
+  const entryToTp1 = Math.max(tp1 - entry, 0.01);
+  const tp1ToTp2 = Math.max((tp2 != null ? tp2 - tp1 : entryToTp1), 0.01);
+  const beyond = tp1ToTp2 * 0.6;
+  const total = slToEntry + entryToTp1 + tp1ToTp2 + beyond;
+  return {
+    slFlex: slToEntry,
+    midFlex: entryToTp1,
+    tpFlex: tp1ToTp2,
+    beyondFlex: beyond,
+    markerPercent: (slToEntry / total) * 100,
+  };
+}
+
 function todayDDMMYYYY() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -383,13 +403,29 @@ export default function SinyalPage() {
         {s.estimatedEntry && (
           <p className="muted">Entry estimasi - cek harga live sebelum eksekusi</p>
         )}
-        {s.adjusted && (
-          <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
-        )}
         <>
-          <div className="metric-grid">
-            <div className="metric-cell">
-              <div className="metric-label">Entry</div>
+          {(() => {
+            const rb = buildRangeBar(s.sl, s.entry, s.tp1, s.tp2);
+            return (
+              <div className="range-bar">
+                <div className="range-seg sl" style={{ flex: rb.slFlex }} />
+                <div className="range-seg mid" style={{ flex: rb.midFlex }} />
+                <div className="range-seg tp" style={{ flex: rb.tpFlex }} />
+                <div className="range-seg tp-beyond" style={{ flex: rb.beyondFlex }} />
+                <div className="range-marker" style={{ left: `${rb.markerPercent}%` }} />
+              </div>
+            );
+          })()}
+          <div className="range-labels">
+            <div className="range-label sl">
+              <span className="metric-label">SL</span>
+              <div className="metric-value">{s.sl?.toLocaleString('id-ID')}</div>
+              {pos && pos.lembar > 0 && (
+                <div className="metric-sub">-{formatRupiah((s.entry - s.sl) * pos.lembar)}</div>
+              )}
+            </div>
+            <div className="range-label">
+              <span className="metric-label">Entry</span>
               <div className="metric-value">{s.entry.toLocaleString('id-ID')}</div>
               {s.buyLow != null && s.buyHigh != null && (
                 <div className="metric-sub muted">
@@ -397,44 +433,34 @@ export default function SinyalPage() {
                 </div>
               )}
             </div>
-            <div className="metric-cell sl">
-              <div className="metric-label">SL</div>
-              <div className="metric-value sl">{s.sl?.toLocaleString('id-ID')}</div>
+            <div className="range-label tp">
+              <span className="metric-label">TP1</span>
+              <div className="metric-value">{s.tp1?.toLocaleString('id-ID')}</div>
               {pos && pos.lembar > 0 && (
-                <div className="metric-sub sl">
-                  -{formatRupiah((s.entry - s.sl) * pos.lembar)}
-                </div>
+                <div className="metric-sub">+{formatRupiah((s.tp1 - s.entry) * pos.lembar)}</div>
               )}
             </div>
-            <div className="metric-cell tp">
-              <div className="metric-label">TP1</div>
-              <div className="metric-value tp">{s.tp1?.toLocaleString('id-ID')}</div>
-              {pos && pos.lembar > 0 && (
-                <div className="metric-sub tp">
-                  +{formatRupiah((s.tp1 - s.entry) * pos.lembar)}
-                </div>
-              )}
-            </div>
-            {(s.tp2 || s.tp3) && (
-              <>
-                <div className="metric-cell tp">
-                  <div className="metric-label">TP2</div>
-                  <div className="metric-value tp">{s.tp2?.toLocaleString('id-ID') || '-'}</div>
-                </div>
-                <div className="metric-cell tp">
-                  <div className="metric-label">TP3</div>
-                  <div className="metric-value tp">{s.tp3?.toLocaleString('id-ID') || '-'}</div>
-                </div>
-                <div className="metric-cell" />
-              </>
+            {s.tp2 != null && (
+              <div className="range-label tp">
+                <span className="metric-label">TP2</span>
+                <div className="metric-value">{s.tp2.toLocaleString('id-ID')}</div>
+              </div>
             )}
           </div>
+          {s.tp3 != null && (
+            <p className="muted" style={{ marginTop: 4 }}>TP3: {s.tp3.toLocaleString('id-ID')}</p>
+          )}
           {s.isOpen && pos && pos.rupiah > 0 && (
             <div className="position-box">
-              <span className="muted">Saran posisi</span>
-              <span style={{ fontWeight: 700, fontSize: 14 }}>
-                {formatRupiah(pos.rupiah)} <span className="muted" style={{ fontWeight: 500 }}>· {Math.round(pos.lembar / 100)} lot</span>
-              </span>
+              <div className="pb-row">
+                <span className="muted">Saran posisi</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>
+                  {formatRupiah(pos.rupiah)} <span className="muted" style={{ fontWeight: 500 }}>· {Math.round(pos.lembar / 100)} lot</span>
+                </span>
+              </div>
+              {s.adjusted && (
+                <span className="pb-note">⚠ Lot dikurangi dari saran normal, disesuaikan sisa modal</span>
+              )}
             </div>
           )}
         </>
