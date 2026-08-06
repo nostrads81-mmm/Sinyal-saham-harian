@@ -11,11 +11,17 @@ export default function TradingViewButton({ onClick, active }) {
       aria-pressed={active}
       style={{ padding: '4px 8px', lineHeight: 0 }}
     >
-      <svg width="16" height="16" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="32" height="32" rx="7" fill="#131722" />
-        <path d="M8 20.5V9h3.4v8.3H16v3.2H8z" fill="#2962FF" />
-        <circle cx="21.2" cy="12.4" r="3.4" fill="#2962FF" />
-        <path d="M8 23h16v1.8H8z" fill="#787B86" />
+      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="9" fill="#131722" />
+        <rect x="7" y="14" width="4.5" height="10" fill="#fff" />
+        <path
+          d="M14 19.5L18 24l7.5-13.5"
+          stroke="#fff"
+          strokeWidth="3.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
       </svg>
     </button>
   );
