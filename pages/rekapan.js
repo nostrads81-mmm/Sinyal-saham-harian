@@ -5,6 +5,8 @@ import {
   ensureSheetsInitialized, getOrCreateAppDataSheetId,
 } from '../lib/sheets';
 import SettingsSheet from '../components/SettingsSheet';
+import TradingViewQuote from '../components/TradingViewQuote';
+import TradingViewButton from '../components/TradingViewButton';
 
 function todayDDMMYYYY() {
   const d = new Date();
@@ -77,6 +79,15 @@ export default function RekapanPage() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [expandedRow, setExpandedRow] = useState(null);
+  const [tvOpen, setTvOpen] = useState(new Set());
+
+  function toggleTv(rowNumber) {
+    setTvOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowNumber)) next.delete(rowNumber); else next.add(rowNumber);
+      return next;
+    });
+  }
 
   const [confirmingRow, setConfirmingRow] = useState(null);
   const [confirmPrice, setConfirmPrice] = useState('');
@@ -295,8 +306,16 @@ export default function RekapanPage() {
           <div key={e.rowNumber} className="card">
             <div className="card-row">
               <span className="ticker">{e.stock}</span>
-              <span className={badge.cls}>{badge.label}</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <TradingViewButton onClick={() => toggleTv(e.rowNumber)} active={tvOpen.has(e.rowNumber)} />
+                <span className={badge.cls}>{badge.label}</span>
+              </div>
             </div>
+            {tvOpen.has(e.rowNumber) && (
+              <div style={{ marginTop: 8 }}>
+                <TradingViewQuote stock={e.stock} />
+              </div>
+            )}
             <p className="muted" style={{ marginTop: 2 }}>
               Entry {e.entry?.toLocaleString('id-ID')} &middot; {lot ? `${lot} lot` : '- lot'} &middot; {e.tanggalEntry}
             </p>
