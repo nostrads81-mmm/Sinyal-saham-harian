@@ -54,6 +54,7 @@ export default function SinyalPage() {
   const [recordingStock, setRecordingStock] = useState(null);
   const [fillPrice, setFillPrice] = useState('');
   const [fillLot, setFillLot] = useState('');
+  const [orderFilled, setOrderFilled] = useState(true);
   const [tvOpen, setTvOpen] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -141,6 +142,7 @@ export default function SinyalPage() {
     setRecordingStock(s.stock);
     setFillPrice(String(s.entry));
     setFillLot(pos ? String(Math.round(pos.lembar / 100)) : '');
+    setOrderFilled(true);
     setSaveError(null);
   }
 
@@ -159,7 +161,7 @@ export default function SinyalPage() {
         // Leading "'" forces Sheets to keep this as literal text instead of
         // silently converting "03-08-2026" into a date serial number (46237).
         `'${todayDDMMYYYY()}`, s.stock, Number(fillPrice) || s.entry, s.sl, s.tp1, s.tp2 || '',
-        'RUNNING', '', '', `Lot: ${fillLot || '-'}`,
+        orderFilled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${fillLot || '-'}`,
       ];
       await appendValues(sheetId, 'DayTrade_Journal!A:J', [row], token);
       setRecordingStock(null);
@@ -408,14 +410,14 @@ export default function SinyalPage() {
         {s.isOpen && !s.willSkip && recordingStock !== s.stock && (
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button className="btn" style={{ flex: 1 }} onClick={() => openRecordForm(s, pos)}>
-              Sudah beli, catat ke jurnal
+              Catat order ke jurnal
             </button>
           </div>
         )}
 
         {recordingStock === s.stock && (
-          <div style={{ marginTop: 8, borderTop: '1px solid #262832', paddingTop: 8 }}>
-            <p className="muted" style={{ marginBottom: 4 }}>Harga beli aktual</p>
+          <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+            <p className="muted" style={{ marginBottom: 4 }}>Harga beli {orderFilled ? 'aktual' : 'yang dipasang'}</p>
             <input
               type="number"
               value={fillPrice}
@@ -429,6 +431,28 @@ export default function SinyalPage() {
               onChange={(e) => setFillLot(e.target.value)}
               style={{ marginBottom: 8 }}
             />
+            <p className="muted" style={{ marginBottom: 4 }}>Status order</p>
+            <div className="segmented" style={{ marginBottom: 8 }}>
+              <button
+                type="button"
+                className={`seg-btn ${orderFilled ? 'active' : ''}`}
+                onClick={() => setOrderFilled(true)}
+              >
+                Sudah ke-fill
+              </button>
+              <button
+                type="button"
+                className={`seg-btn ${!orderFilled ? 'active' : ''}`}
+                onClick={() => setOrderFilled(false)}
+              >
+                Baru dipasang, belum fill
+              </button>
+            </div>
+            {!orderFilled && (
+              <p className="muted" style={{ marginBottom: 8 }}>
+                Dana akan dikunci di kalkulasi modal/slot, tapi belum dihitung sebagai posisi berjalan sampai dikonfirmasi fill di Rekapan.
+              </p>
+            )}
             {saveError && <p className="muted text-danger">{saveError}</p>}
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn" style={{ flex: 1 }} onClick={closeRecordForm} disabled={saving}>

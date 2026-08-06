@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken } from '../lib/auth';
 import {
-  getJournalEntries, closeJournalEntry, getSettings, updateSettings, ensureSheetsInitialized, getOrCreateAppDataSheetId,
+  getJournalEntries, closeJournalEntry, confirmJournalFill, deleteJournalRow, getSettings, updateSettings,
+  ensureSheetsInitialized, getOrCreateAppDataSheetId,
 } from '../lib/sheets';
 import SettingsSheet from '../components/SettingsSheet';
 
@@ -56,6 +57,7 @@ function computeNetPnl(entry, exit, lot, settings) {
 
 const STATUS_BADGE = {
   RUNNING: { cls: 'badge', label: 'running' },
+  PENDING: { cls: 'badge badge-warning', label: 'order pending' },
   OPEN: { cls: 'badge', label: 'open' },
   'CLOSE-PROFIT': { cls: 'badge badge-success', label: 'profit' },
   'CLOSE-LOSS': { cls: 'badge badge-danger', label: 'loss' },
@@ -75,6 +77,11 @@ export default function RekapanPage() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [expandedRow, setExpandedRow] = useState(null);
+
+  const [confirmingRow, setConfirmingRow] = useState(null);
+  const [confirmPrice, setConfirmPrice] = useState('');
+  const [confirmLot, setConfirmLot] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -151,6 +158,44 @@ export default function RekapanPage() {
     }
   }
 
+  function openConfirmForm(entry) {
+    setConfirmingRow(entry.rowNumber);
+    setConfirmPrice(String(entry.entry));
+    setConfirmLot(String(parseLot(entry.catatan)));
+  }
+
+  async function submitConfirmFill(entry) {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      await confirmJournalFill(token, sheetId, entry.rowNumber, {
+        entry: Number(confirmPrice) || entry.entry,
+        lot: Number(confirmLot) || parseLot(entry.catatan),
+      });
+      setConfirmingRow(null);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  async function cancelOrder(entry) {
+    if (!window.confirm(`Batalkan order ${entry.stock}? Baris ini akan dihapus dari jurnal.`)) return;
+    setCancelling(true);
+    try {
+      await deleteJournalRow(token, sheetId, entry.rowNumber);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   async function saveSettings({ capital, maxSlots }) {
     setSettingsSaving(true);
     try {
@@ -175,7 +220,9 @@ export default function RekapanPage() {
   }
 
   const closed = settings ? entries.filter((e) => e.status.startsWith('CLOSE')) : [];
-  const runningEntries = settings ? entries.filter((e) => e.status === 'RUNNING' || e.status === 'OPEN') : [];
+  const runningEntries = settings
+    ? entries.filter((e) => e.status === 'RUNNING' || e.status === 'PENDING' || e.status === 'OPEN')
+    : [];
   const closedEntries = closed;
   const closedNet = closed.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLot(e.catatan), settings));
   const wins = closedNet.filter((n) => n && n.pnlPercent >= 0).length;
@@ -259,14 +306,63 @@ export default function RekapanPage() {
               {e.tp2 ? <> {' · '}TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></> : null}
             </p>
 
-            {closingRow !== e.rowNumber && (
+            {e.status === 'PENDING' && confirmingRow !== e.rowNumber && (
+              <p className="muted" style={{ marginTop: 6 }}>
+                Dana sudah dihitung terkunci di modal/slot, tapi posisi belum aktif sampai order ke-fill di broker.
+              </p>
+            )}
+
+            {e.status === 'PENDING' && confirmingRow !== e.rowNumber && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button className="btn" style={{ flex: 1 }} onClick={() => openConfirmForm(e)}>
+                  Konfirmasi fill
+                </button>
+                <button className="btn" onClick={() => cancelOrder(e)} disabled={cancelling}>
+                  Batalkan order
+                </button>
+              </div>
+            )}
+
+            {confirmingRow === e.rowNumber && (
+              <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                <p className="muted" style={{ marginBottom: 4 }}>Harga fill aktual</p>
+                <input
+                  type="number"
+                  value={confirmPrice}
+                  onChange={(ev) => setConfirmPrice(ev.target.value)}
+                  style={{ marginBottom: 8 }}
+                />
+                <p className="muted" style={{ marginBottom: 4 }}>Jumlah (lot)</p>
+                <input
+                  type="number"
+                  value={confirmLot}
+                  onChange={(ev) => setConfirmLot(ev.target.value)}
+                  style={{ marginBottom: 8 }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn" style={{ flex: 1 }} onClick={() => setConfirmingRow(null)} disabled={saving}>
+                    Batal
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1 }}
+                    onClick={() => submitConfirmFill(e)}
+                    disabled={saving}
+                  >
+                    {saving ? 'Menyimpan...' : 'Sudah ke-fill'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {e.status !== 'PENDING' && closingRow !== e.rowNumber && (
               <button className="btn" style={{ marginTop: 8, width: '100%' }} onClick={() => openCloseForm(e)}>
                 Tutup posisi
               </button>
             )}
 
-            {closingRow === e.rowNumber && (
-              <div style={{ marginTop: 8, borderTop: '1px solid #262832', paddingTop: 8 }}>
+            {e.status !== 'PENDING' && closingRow === e.rowNumber && (
+              <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                 <p className="muted" style={{ marginBottom: 4 }}>Harga exit</p>
                 <input
                   type="number"
