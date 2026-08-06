@@ -85,6 +85,12 @@ export default async function handler(req, res) {
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
+      if (geminiRes.status === 429) {
+        res.status(429).json({
+          error: 'Kuota harian AI untuk baca screenshot WA sudah habis (maks 20x/hari di paket gratis). Coba lagi setelah kuota reset, atau aktifkan billing di Google AI Studio untuk kuota lebih besar.',
+        });
+        return;
+      }
       res.status(502).json({ error: `Gemini API error: ${errText}` });
       return;
     }
