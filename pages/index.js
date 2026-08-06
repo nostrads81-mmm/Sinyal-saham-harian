@@ -603,33 +603,30 @@ export default function SinyalPage() {
 
   return (
     <div>
-      <div className="page-header card-row" style={{ alignItems: 'flex-start' }}>
-        <div>
+      <div className="page-header">
+        <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <h1 className="page-title">Sinyal Saham Harian</h1>
-          {settings ? (
-            <div className="header-stats">
-              <div>
-                <div className="header-stat-label">Slot</div>
-                <div className="header-stat-value">{usedSlots}/{settings.maxSlots}</div>
-              </div>
-              <div>
-                <div className="header-stat-label">Modal terpakai</div>
-                <div className="header-stat-value">{formatRupiah(investedCapital)}</div>
-              </div>
-              <div>
-                <div className="header-stat-label">Sisa modal</div>
-                <div className="header-stat-value">{formatRupiah(remainingCapital)}</div>
-              </div>
-            </div>
-          ) : (
-            <p className="page-sub">...</p>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
           <button className="btn icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Pengaturan">
             &#9881;
           </button>
         </div>
+        {settings ? (
+          <>
+            <div className="hero-row">
+              <div>
+                <div className="hero-label">Sisa modal</div>
+                <div className="hero-value">{formatRupiah(remainingCapital)}</div>
+              </div>
+              <span className="slot-pill">Slot {usedSlots}/{settings.maxSlots}</span>
+            </div>
+            <div className="hero-sub">
+              <span className="hero-sub-item">Terpakai <b>{formatRupiah(investedCapital)}</b></span>
+              <span className="hero-sub-item">Total modal <b>{formatRupiah(settings.capital)}</b></span>
+            </div>
+          </>
+        ) : (
+          <p className="page-sub">...</p>
+        )}
       </div>
 
       <SettingsSheet
