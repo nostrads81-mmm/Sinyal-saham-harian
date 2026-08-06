@@ -310,7 +310,6 @@ export default function SinyalPage() {
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <span className="ticker">{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {s.source === 'wa' && <span className="badge badge-wa">dari WA</span>}
             {s.willSkip && s.skipReason === 'modal-habis' && (
               <span className="badge badge-warning">skip · modal habis</span>
             )}
@@ -516,14 +515,27 @@ export default function SinyalPage() {
 
   return (
     <div>
-      <div className="page-header card-row">
+      <div className="page-header card-row" style={{ alignItems: 'flex-start' }}>
         <div>
           <h1 className="page-title">Sinyal Saham Harian</h1>
-          <p className="page-sub">
-            {settings
-              ? `Slot ${usedSlots}/${settings.maxSlots} · Sisa modal ${formatRupiah(remainingCapital)} dari ${formatRupiah(settings.capital)}`
-              : '...'}
-          </p>
+          {settings ? (
+            <div className="header-stats">
+              <div>
+                <div className="header-stat-label">Slot</div>
+                <div className="header-stat-value">{usedSlots}/{settings.maxSlots}</div>
+              </div>
+              <div>
+                <div className="header-stat-label">Modal terpakai</div>
+                <div className="header-stat-value">{formatRupiah(investedCapital)}</div>
+              </div>
+              <div>
+                <div className="header-stat-label">Sisa modal</div>
+                <div className="header-stat-value">{formatRupiah(remainingCapital)}</div>
+              </div>
+            </div>
+          ) : (
+            <p className="page-sub">...</p>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button className="btn" onClick={() => setRefreshKey((k) => k + 1)} disabled={loading} aria-label="Refresh">
@@ -550,12 +562,9 @@ export default function SinyalPage() {
         contentEditable
         suppressContentEditableWarning
         onPaste={handleWaPasteZone}
-        style={{
-          background: 'transparent', border: '1px dashed #343a4a', borderRadius: 12, padding: '12px 14px', marginBottom: 12,
-          color: '#8b8fa3', fontSize: 13, fontWeight: 500, outline: 'none', minHeight: 18, textAlign: 'center',
-        }}
+        className="wa-paste-zone"
       >
-        {waExtracting ? 'Membaca screenshot WA...' : 'Tambah sinyal dari WA'}
+        {waExtracting ? 'Membaca screenshot WA...' : '+ Tempel screenshot WA di sini'}
       </div>
       {waExtractError && <p className="muted text-danger">{waExtractError}</p>}
 
