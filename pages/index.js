@@ -343,9 +343,7 @@ export default function SinyalPage() {
           <p className="muted">Tunggu turun ke {s.waitFor} sebelum entry</p>
         )}
         {s.estimatedEntry && (
-          <p className="muted">
-            Entry estimasi ({s.tradeType === 'DAY TRADE' ? 'batas atas range' : 'tengah range'}) - cek harga live sebelum eksekusi
-          </p>
+          <p className="muted">Entry estimasi (tengah range) - cek harga live sebelum eksekusi</p>
         )}
         {s.adjusted && (
           <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
@@ -355,6 +353,11 @@ export default function SinyalPage() {
             <div className="metric-cell">
               <div className="metric-label">Entry</div>
               <div className="metric-value">{s.entry.toLocaleString('id-ID')}</div>
+              {s.buyLow != null && s.buyHigh != null && (
+                <div className="metric-sub muted">
+                  {s.buyLow.toLocaleString('id-ID')}-{s.buyHigh.toLocaleString('id-ID')} (tengah)
+                </div>
+              )}
             </div>
             <div className="metric-cell">
               <div className="metric-label">SL</div>
