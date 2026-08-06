@@ -9,6 +9,7 @@ import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } fr
 import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
+import TradingViewButton from '../components/TradingViewButton';
 
 // Temporary: the Google Sheet watchlist is paused as a signal source, so WA
 // screenshots are the only way signals get in right now. Flip back to true
@@ -293,11 +294,6 @@ export default function SinyalPage() {
     }
   }
 
-  function copyAll() {
-    const shown = signals.filter((s) => !s.willSkip);
-    navigator.clipboard.writeText(buildAiPrompt(shown));
-  }
-
   function copyOne(signal) {
     navigator.clipboard.writeText(buildAiPrompt([signal]));
   }
@@ -359,9 +355,7 @@ export default function SinyalPage() {
                 <span className="score-lbl">skor</span>
               </span>
             )}
-            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => toggleTv(cardKey)}>
-              TradingView
-            </button>
+            <TradingViewButton onClick={() => toggleTv(cardKey)} active={tvOpen.has(cardKey)} />
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
               copy
             </button>
@@ -606,10 +600,6 @@ export default function SinyalPage() {
           )}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn" onClick={() => setRefreshKey((k) => k + 1)} disabled={loading} aria-label="Refresh">
-            &#8635;
-          </button>
-          <button className="btn" onClick={copyAll}>Copy semua</button>
           <button className="btn icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Pengaturan">
             &#9881;
           </button>
