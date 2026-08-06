@@ -284,7 +284,11 @@ html[data-theme="light"] .score-chip { border-color: rgba(166, 106, 0, 0.3); }
   padding: 13px 14px;
   margin-bottom: 12px;
   color: var(--text-faint);
-  font-size: 13px;
+  /* Never go below 16px on a focusable/editable element - iOS Safari
+     auto-zooms the whole page on focus when the computed font-size is
+     smaller than that, and in PWA/standalone mode it can get stuck zoomed
+     in instead of resetting on blur. */
+  font-size: 16px;
   font-weight: 600;
   outline: none;
   min-height: 18px;
@@ -299,7 +303,8 @@ textarea, input {
   color: var(--text);
   border-radius: var(--radius-sm);
   padding: 9px 10px;
-  font-size: 13.5px;
+  /* Same 16px floor as .wa-paste-zone above, same iOS auto-zoom reason. */
+  font-size: 16px;
   width: 100%;
   transition: border-color 0.15s ease;
 }

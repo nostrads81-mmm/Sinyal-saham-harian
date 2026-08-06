@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
   getValues, appendValues, ensureSheetsInitialized, getOrCreateAppDataSheetId, getSettings, updateSettings,
-  getInvestedCapital, getJournaledStocks, getActiveJournalCount, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
+  getInvestedCapital, getJournaledStocks, getActiveJournalCount, getWaSignalRows, addWaSignalRows, removeWaSignalRow,
+  pruneStaleWaSignalRows, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
-import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
 import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
@@ -61,6 +61,7 @@ export default function SinyalPage() {
   const savingRef = useRef(false);
 
   const [waExtracting, setWaExtracting] = useState(false);
+  const [waSaving, setWaSaving] = useState(false);
   const [waExtractError, setWaExtractError] = useState(null);
   const [waReview, setWaReview] = useState(null);
   const waPasteZoneRef = useRef(null);
@@ -98,12 +99,13 @@ export default function SinyalPage() {
         if (cancelled) return;
         setSheetId(resolvedSheetId);
         await ensureSheetsInitialized(token, resolvedSheetId);
-        const [rawRows, settingsData, invested, journaled, occupiedSlots] = await Promise.all([
+        const [rawRows, settingsData, invested, journaled, occupiedSlots, waRaw] = await Promise.all([
           WATCHLIST_SHEET_ENABLED ? getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token) : Promise.resolve([]),
           getSettings(token, resolvedSheetId),
           getInvestedCapital(token, resolvedSheetId),
           getJournaledStocks(token, resolvedSheetId),
           getActiveJournalCount(token, resolvedSheetId),
+          getWaSignalRows(token, resolvedSheetId),
         ]);
         if (cancelled) return;
         setSettings(settingsData);
@@ -112,10 +114,9 @@ export default function SinyalPage() {
         setUsedSlots(occupiedSlots);
         const parsed = WATCHLIST_SHEET_ENABLED ? parseWatchlistRows(rawRows) : [];
 
-        const waRaw = getWaSignals();
         const waBuilt = waRaw.map(buildWaSignal);
         const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);
-        if (staleWaStocks.length > 0) pruneStaleWaSignals(staleWaStocks);
+        if (staleWaStocks.length > 0) await pruneStaleWaSignalRows(token, resolvedSheetId, staleWaStocks);
 
         const remainingCapital = Math.max(settingsData.capital - invested, 0);
         const ranked = rankSignals(combined, {
@@ -228,9 +229,11 @@ export default function SinyalPage() {
     setWaReview((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function confirmWaSignals() {
-    for (const s of waReview) {
-      addWaSignal({
+  async function confirmWaSignals() {
+    setWaSaving(true);
+    setWaExtractError(null);
+    try {
+      const signals = waReview.map((s) => ({
         stock: s.stock,
         tradeType: s.tradeType === 'SWING TRADE' ? 'SWING TRADE' : 'DAY TRADE',
         buyLow: Number(s.buyLow),
@@ -240,10 +243,15 @@ export default function SinyalPage() {
         tp2: s.tp2 ? Number(s.tp2) : null,
         mmPercent: s.mmPercent ? Number(s.mmPercent) : null,
         capturedAt: new Date().toISOString(),
-      });
+      }));
+      await addWaSignalRows(token, sheetId, signals);
+      setWaReview(null);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setWaExtractError(e.message);
+    } finally {
+      setWaSaving(false);
     }
-    setWaReview(null);
-    setRefreshKey((k) => k + 1);
   }
 
   async function saveSettings({ capital, maxSlots }) {
@@ -276,13 +284,17 @@ export default function SinyalPage() {
     });
   }
 
-  function hapusSignal(s) {
-    if (s.source === 'wa') {
-      removeWaSignal(s.stock);
-    } else {
-      dismissSignal(s.stock);
+  async function hapusSignal(s) {
+    try {
+      if (s.source === 'wa') {
+        await removeWaSignalRow(token, sheetId, s.stock);
+      } else {
+        dismissSignal(s.stock);
+      }
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
     }
-    setRefreshKey((k) => k + 1);
   }
 
   if (!token) {
@@ -527,10 +539,16 @@ export default function SinyalPage() {
           </div>
         ))}
 
+        {waExtractError && <p className="muted text-danger">{waExtractError}</p>}
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <button className="btn" style={{ flex: 1 }} onClick={() => setWaReview(null)}>Batal</button>
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={confirmWaSignals} disabled={waReview.length === 0}>
-            Tambahkan ke daftar
+          <button className="btn" style={{ flex: 1 }} onClick={() => setWaReview(null)} disabled={waSaving}>Batal</button>
+          <button
+            className="btn btn-primary"
+            style={{ flex: 1 }}
+            onClick={confirmWaSignals}
+            disabled={waReview.length === 0 || waSaving}
+          >
+            {waSaving ? 'Menyimpan...' : 'Tambahkan ke daftar'}
           </button>
         </div>
       </div>
