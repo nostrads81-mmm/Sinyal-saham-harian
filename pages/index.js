@@ -343,7 +343,9 @@ export default function SinyalPage() {
           <p className="muted">Tunggu turun ke {s.waitFor} sebelum entry</p>
         )}
         {s.estimatedEntry && (
-          <p className="muted">Entry estimasi (tengah range) - cek harga live sebelum eksekusi</p>
+          <p className="muted">
+            Entry estimasi ({s.tradeType === 'DAY TRADE' ? 'batas atas range' : 'tengah range'}) - cek harga live sebelum eksekusi
+          </p>
         )}
         {s.adjusted && (
           <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
