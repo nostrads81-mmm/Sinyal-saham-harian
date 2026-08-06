@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
-  getValues, appendValues, ensureSheetsInitialized, getSettings, updateSettings, getInvestedCapital, getJournaledStocks,
-  getActiveJournalCount, APP_DATA_SHEET_ID, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
+  getValues, appendValues, ensureSheetsInitialized, getOrCreateAppDataSheetId, getSettings, updateSettings,
+  getInvestedCapital, getJournaledStocks, getActiveJournalCount, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import { getWaSignals, addWaSignal, removeWaSignal, pruneStaleWaSignals } from '../lib/waSignals';
@@ -67,6 +67,11 @@ export default function SinyalPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
+  // Each Google account gets its own auto-created spreadsheet for
+  // Settings/DayTrade_Journal - resolved once per sign-in, then reused for
+  // every sheet call below instead of a shared hardcoded ID.
+  const [sheetId, setSheetId] = useState(null);
+
   useEffect(() => {
     setToken(getStoredToken());
   }, []);
@@ -88,13 +93,16 @@ export default function SinyalPage() {
     setError(null);
     (async () => {
       try {
-        await ensureSheetsInitialized(token);
+        const resolvedSheetId = await getOrCreateAppDataSheetId(token);
+        if (cancelled) return;
+        setSheetId(resolvedSheetId);
+        await ensureSheetsInitialized(token, resolvedSheetId);
         const [rawRows, settingsData, invested, journaled, occupiedSlots] = await Promise.all([
           WATCHLIST_SHEET_ENABLED ? getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token) : Promise.resolve([]),
-          getSettings(token),
-          getInvestedCapital(token),
-          getJournaledStocks(token),
-          getActiveJournalCount(token),
+          getSettings(token, resolvedSheetId),
+          getInvestedCapital(token, resolvedSheetId),
+          getJournaledStocks(token, resolvedSheetId),
+          getActiveJournalCount(token, resolvedSheetId),
         ]);
         if (cancelled) return;
         setSettings(settingsData);
@@ -153,7 +161,7 @@ export default function SinyalPage() {
         `'${todayDDMMYYYY()}`, s.stock, Number(fillPrice) || s.entry, s.sl, s.tp1, s.tp2 || '',
         'RUNNING', '', '', `Lot: ${fillLot || '-'}`,
       ];
-      await appendValues(APP_DATA_SHEET_ID, 'DayTrade_Journal!A:J', [row], token);
+      await appendValues(sheetId, 'DayTrade_Journal!A:J', [row], token);
       setRecordingStock(null);
       setRefreshKey((k) => k + 1);
     } catch (e) {
@@ -239,7 +247,7 @@ export default function SinyalPage() {
   async function saveSettings({ capital, maxSlots }) {
     setSettingsSaving(true);
     try {
-      await updateSettings(token, { capital, maxSlots });
+      await updateSettings(token, sheetId, { capital, maxSlots });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
     } catch (e) {

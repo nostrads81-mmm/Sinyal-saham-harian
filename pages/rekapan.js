@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken } from '../lib/auth';
-import { getJournalEntries, closeJournalEntry, getSettings, updateSettings, ensureSheetsInitialized } from '../lib/sheets';
+import {
+  getJournalEntries, closeJournalEntry, getSettings, updateSettings, ensureSheetsInitialized, getOrCreateAppDataSheetId,
+} from '../lib/sheets';
 import SettingsSheet from '../components/SettingsSheet';
 
 function todayDDMMYYYY() {
@@ -77,6 +79,8 @@ export default function RekapanPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
+  const [sheetId, setSheetId] = useState(null);
+
   useEffect(() => {
     setToken(getStoredToken());
   }, []);
@@ -98,10 +102,13 @@ export default function RekapanPage() {
     setError(null);
     (async () => {
       try {
-        await ensureSheetsInitialized(token);
+        const resolvedSheetId = await getOrCreateAppDataSheetId(token);
+        if (cancelled) return;
+        setSheetId(resolvedSheetId);
+        await ensureSheetsInitialized(token, resolvedSheetId);
         const [data, settingsData] = await Promise.all([
-          getJournalEntries(token),
-          getSettings(token),
+          getJournalEntries(token, resolvedSheetId),
+          getSettings(token, resolvedSheetId),
         ]);
         if (cancelled) return;
         setEntries(data.reverse());
@@ -129,7 +136,7 @@ export default function RekapanPage() {
       const lot = parseLot(entry.catatan);
       const net = computeNetPnl(entry.entry, exit, lot, settings);
       const status = net.pnlPercent >= 0 ? 'CLOSE-PROFIT' : 'CLOSE-LOSS';
-      await closeJournalEntry(token, entry.rowNumber, {
+      await closeJournalEntry(token, sheetId, entry.rowNumber, {
         tanggalExit: `'${todayDDMMYYYY()}`,
         hargaExit: exit,
         status,
@@ -147,7 +154,7 @@ export default function RekapanPage() {
   async function saveSettings({ capital, maxSlots }) {
     setSettingsSaving(true);
     try {
-      await updateSettings(token, { capital, maxSlots });
+      await updateSettings(token, sheetId, { capital, maxSlots });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
     } catch (e) {
