@@ -15,6 +15,23 @@ import TradingViewQuote from '../components/TradingViewQuote';
 // to resume reading WATCHLIST_SHEET_ID again.
 const WATCHLIST_SHEET_ENABLED = false;
 
+// Key used by the old localStorage-based WA signal buffer (removed once
+// signals moved to the WA_Signals sheet tab). Any device that still has
+// signals sitting under this key gets them migrated up on next load instead
+// of just losing them - the sheet starts out empty for everyone, so without
+// this a device's WA signals would silently vanish the first time it loads
+// the new code.
+const LEGACY_WA_STORAGE_KEY = 'wa_signals_buffer_v2';
+
+function readLegacyWaSignals() {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(LEGACY_WA_STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
 function formatRupiah(n) {
   return 'Rp' + Math.round(n).toLocaleString('id-ID');
 }
@@ -114,7 +131,16 @@ export default function SinyalPage() {
         setUsedSlots(occupiedSlots);
         const parsed = WATCHLIST_SHEET_ENABLED ? parseWatchlistRows(rawRows) : [];
 
-        const waBuilt = waRaw.map(buildWaSignal);
+        let effectiveWaRaw = waRaw;
+        if (waRaw.length === 0) {
+          const legacy = readLegacyWaSignals();
+          if (legacy.length > 0) {
+            await addWaSignalRows(token, resolvedSheetId, legacy);
+            localStorage.removeItem(LEGACY_WA_STORAGE_KEY);
+            effectiveWaRaw = legacy;
+          }
+        }
+        const waBuilt = effectiveWaRaw.map(buildWaSignal);
         const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);
         if (staleWaStocks.length > 0) await pruneStaleWaSignalRows(token, resolvedSheetId, staleWaStocks);
 
