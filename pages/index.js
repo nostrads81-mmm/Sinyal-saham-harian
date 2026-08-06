@@ -10,6 +10,11 @@ import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
 
+// Temporary: the Google Sheet watchlist is paused as a signal source, so WA
+// screenshots are the only way signals get in right now. Flip back to true
+// to resume reading WATCHLIST_SHEET_ID again.
+const WATCHLIST_SHEET_ENABLED = false;
+
 function formatRupiah(n) {
   return 'Rp' + Math.round(n).toLocaleString('id-ID');
 }
@@ -85,7 +90,7 @@ export default function SinyalPage() {
       try {
         await ensureSheetsInitialized(token);
         const [rawRows, settingsData, invested, journaled, occupiedSlots] = await Promise.all([
-          getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token),
+          WATCHLIST_SHEET_ENABLED ? getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token) : Promise.resolve([]),
           getSettings(token),
           getInvestedCapital(token),
           getJournaledStocks(token),
@@ -96,7 +101,7 @@ export default function SinyalPage() {
         setInvestedCapital(invested);
         setJournaledStocks(journaled);
         setUsedSlots(occupiedSlots);
-        const parsed = parseWatchlistRows(rawRows);
+        const parsed = WATCHLIST_SHEET_ENABLED ? parseWatchlistRows(rawRows) : [];
 
         const waRaw = getWaSignals();
         const waBuilt = waRaw.map(buildWaSignal);
