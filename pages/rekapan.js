@@ -169,7 +169,7 @@ export default function RekapanPage() {
       <div className="center-box">
         <p>Masuk dengan akun Google untuk melihat rekapan.</p>
         <button className="btn btn-primary" onClick={handleSignIn}>Sign in dengan Google</button>
-        {error && <p className="muted" style={{ color: '#ff6b6b' }}>{error}</p>}
+        {error && <p className="muted text-danger">{error}</p>}
       </div>
     );
   }
@@ -209,13 +209,13 @@ export default function RekapanPage() {
       <div className="stat-grid">
         <div className="stat-tile">
           <div className="stat-label">Win rate</div>
-          <div className="stat-value" style={{ color: '#4fd07e' }}>
+          <div className="stat-value text-success">
             {winRate !== null ? `${winRate.toFixed(1)}%` : '-'}
           </div>
         </div>
         <div className="stat-tile">
           <div className="stat-label">Total P&L bersih</div>
-          <div className="stat-value" style={{ color: totalPnlRp >= 0 ? '#4fd07e' : '#ff6b6b', fontSize: 16 }}>
+          <div className={`stat-value ${totalPnlRp >= 0 ? 'text-success' : 'text-danger'}`} style={{ fontSize: 16 }}>
             {closed.length > 0 ? `${totalPnlRp >= 0 ? '+' : ''}${formatRupiah(totalPnlRp)}` : '-'}
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function RekapanPage() {
       )}
 
       {loading && <p className="muted">Memuat jurnal...</p>}
-      {error && <p className="muted" style={{ color: '#ff6b6b' }}>{error}</p>}
+      {error && <p className="muted text-danger">{error}</p>}
       {!loading && entries.length === 0 && !error && (
         <p className="muted">Belum ada transaksi tercatat. Catat dari Tab Sinyal setelah beli.</p>
       )}
@@ -247,16 +247,16 @@ export default function RekapanPage() {
         return (
           <div key={e.rowNumber} className="card">
             <div className="card-row">
-              <span style={{ fontSize: 15, fontWeight: 600 }}>{e.stock}</span>
+              <span className="ticker">{e.stock}</span>
               <span className={badge.cls}>{badge.label}</span>
             </div>
             <p className="muted" style={{ marginTop: 2 }}>
               Entry {e.entry?.toLocaleString('id-ID')} &middot; {lot ? `${lot} lot` : '- lot'} &middot; {e.tanggalEntry}
             </p>
             <p className="muted" style={{ marginTop: 2 }}>
-              SL <span style={{ color: '#ff6b6b' }}>{e.sl?.toLocaleString('id-ID') || '-'}</span>
-              {' · '}TP1 <span style={{ color: '#4fd07e' }}>{e.tp1?.toLocaleString('id-ID') || '-'}</span>
-              {e.tp2 ? <> {' · '}TP2 <span style={{ color: '#4fd07e' }}>{e.tp2.toLocaleString('id-ID')}</span></> : null}
+              SL <span className="text-danger">{e.sl?.toLocaleString('id-ID') || '-'}</span>
+              {' · '}TP1 <span className="text-success">{e.tp1?.toLocaleString('id-ID') || '-'}</span>
+              {e.tp2 ? <> {' · '}TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></> : null}
             </p>
 
             {closingRow !== e.rowNumber && (
@@ -310,7 +310,7 @@ export default function RekapanPage() {
                 onClick={() => setExpandedRow(expanded ? null : e.rowNumber)}
               >
                 <div className="card-row">
-                  <span style={{ fontSize: 15, fontWeight: 600 }}>{e.stock}</span>
+                  <span className="ticker">{e.stock}</span>
                   <span className={badge.cls}>
                     {net ? `${net.pnlPercent >= 0 ? '+' : ''}${net.pnlPercent.toFixed(2)}%` : badge.label}
                   </span>
@@ -327,14 +327,14 @@ export default function RekapanPage() {
                       &middot; {lot ? `${lot} lot` : '- lot'}
                     </p>
                     {net && !net.estimated && (
-                      <p className="muted" style={{ marginTop: 2, color: net.pnlRp >= 0 ? '#4fd07e' : '#ff6b6b' }}>
+                      <p className={`muted ${net.pnlRp >= 0 ? 'text-success' : 'text-danger'}`} style={{ marginTop: 2 }}>
                         {net.pnlRp >= 0 ? '+' : ''}{formatRupiah(net.pnlRp)} bersih (sudah dikurangi fee &amp; materai)
                       </p>
                     )}
                     <p className="muted" style={{ marginTop: 2 }}>
-                      SL <span style={{ color: '#ff6b6b' }}>{e.sl?.toLocaleString('id-ID') || '-'}</span>
-                      {' · '}TP1 <span style={{ color: '#4fd07e' }}>{e.tp1?.toLocaleString('id-ID') || '-'}</span>
-                      {e.tp2 ? <> {' · '}TP2 <span style={{ color: '#4fd07e' }}>{e.tp2.toLocaleString('id-ID')}</span></> : null}
+                      SL <span className="text-danger">{e.sl?.toLocaleString('id-ID') || '-'}</span>
+                      {' · '}TP1 <span className="text-success">{e.tp1?.toLocaleString('id-ID') || '-'}</span>
+                      {e.tp2 ? <> {' · '}TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></> : null}
                     </p>
                   </>
                 )}

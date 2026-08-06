@@ -288,7 +288,7 @@ export default function SinyalPage() {
       <div className="center-box">
         <p>Masuk dengan akun Google (sigits81@gmail.com) untuk melihat sinyal hari ini.</p>
         <button className="btn btn-primary" onClick={handleSignIn}>Sign in dengan Google</button>
-        {error && <p className="muted" style={{ color: '#ff6b6b' }}>{error}</p>}
+        {error && <p className="muted text-danger">{error}</p>}
       </div>
     );
   }
@@ -302,19 +302,24 @@ export default function SinyalPage() {
   const dayTradeSignals = sortedSignals.filter((s) => s.tradeType === 'DAY TRADE');
   const swingTradeSignals = sortedSignals.filter((s) => s.tradeType === 'SWING TRADE');
 
-  function renderCard(s) {
+  function renderCard(s, isSpotlight) {
     const pos = s.position || null;
     const cardKey = s.stock + s.status;
     return (
-      <div key={cardKey} className={`card ${s.willSkip ? 'skip-card' : ''}`}>
+      <div key={cardKey} className={`card ${s.willSkip ? 'skip-card' : ''} ${isSpotlight ? 'spotlight' : ''}`}>
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
-          <span style={{ fontSize: 15, fontWeight: 600 }}>{s.stock}</span>
+          <span className="ticker">{s.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {s.source === 'wa' && <span className="badge badge-wa">dari WA</span>}
             {s.willSkip && s.skipReason === 'modal-habis' && (
               <span className="badge badge-warning">skip · modal habis</span>
             )}
-            {!s.willSkip && <span className="badge">skor {s.score.toFixed(2)}</span>}
+            {!s.willSkip && (
+              <span className="score-chip">
+                <span className="score-num">{s.score.toFixed(1)}</span>
+                <span className="score-lbl">skor</span>
+              </span>
+            )}
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => toggleTv(cardKey)}>
               TradingView
             </button>
@@ -343,7 +348,7 @@ export default function SinyalPage() {
           <p className="muted">Tunggu turun ke {s.waitFor} sebelum entry</p>
         )}
         {s.estimatedEntry && (
-          <p className="muted">Entry estimasi (tengah range) - cek harga live sebelum eksekusi</p>
+          <p className="muted">Entry estimasi - cek harga live sebelum eksekusi</p>
         )}
         {s.adjusted && (
           <p className="muted">Lot dikurangi dari saran normal, disesuaikan sisa modal</p>
@@ -355,37 +360,37 @@ export default function SinyalPage() {
               <div className="metric-value">{s.entry.toLocaleString('id-ID')}</div>
               {s.buyLow != null && s.buyHigh != null && (
                 <div className="metric-sub muted">
-                  {s.buyLow.toLocaleString('id-ID')}-{s.buyHigh.toLocaleString('id-ID')} (tengah)
+                  {s.buyLow.toLocaleString('id-ID')}-{s.buyHigh.toLocaleString('id-ID')}
                 </div>
               )}
             </div>
-            <div className="metric-cell">
+            <div className="metric-cell sl">
               <div className="metric-label">SL</div>
-              <div className="metric-value" style={{ color: '#ff6b6b' }}>{s.sl?.toLocaleString('id-ID')}</div>
+              <div className="metric-value sl">{s.sl?.toLocaleString('id-ID')}</div>
               {pos && pos.lembar > 0 && (
-                <div className="metric-sub" style={{ color: '#ff6b6b' }}>
+                <div className="metric-sub sl">
                   -{formatRupiah((s.entry - s.sl) * pos.lembar)}
                 </div>
               )}
             </div>
-            <div className="metric-cell">
+            <div className="metric-cell tp">
               <div className="metric-label">TP1</div>
-              <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp1?.toLocaleString('id-ID')}</div>
+              <div className="metric-value tp">{s.tp1?.toLocaleString('id-ID')}</div>
               {pos && pos.lembar > 0 && (
-                <div className="metric-sub" style={{ color: '#4fd07e' }}>
+                <div className="metric-sub tp">
                   +{formatRupiah((s.tp1 - s.entry) * pos.lembar)}
                 </div>
               )}
             </div>
             {(s.tp2 || s.tp3) && (
               <>
-                <div className="metric-cell">
+                <div className="metric-cell tp">
                   <div className="metric-label">TP2</div>
-                  <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp2?.toLocaleString('id-ID') || '-'}</div>
+                  <div className="metric-value tp">{s.tp2?.toLocaleString('id-ID') || '-'}</div>
                 </div>
-                <div className="metric-cell">
+                <div className="metric-cell tp">
                   <div className="metric-label">TP3</div>
-                  <div className="metric-value" style={{ color: '#4fd07e' }}>{s.tp3?.toLocaleString('id-ID') || '-'}</div>
+                  <div className="metric-value tp">{s.tp3?.toLocaleString('id-ID') || '-'}</div>
                 </div>
                 <div className="metric-cell" />
               </>
@@ -425,7 +430,7 @@ export default function SinyalPage() {
               onChange={(e) => setFillLot(e.target.value)}
               style={{ marginBottom: 8 }}
             />
-            {saveError && <p className="muted" style={{ color: '#ff6b6b' }}>{saveError}</p>}
+            {saveError && <p className="muted text-danger">{saveError}</p>}
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn" style={{ flex: 1 }} onClick={closeRecordForm} disabled={saving}>
                 Batal
@@ -552,10 +557,10 @@ export default function SinyalPage() {
       >
         {waExtracting ? 'Membaca screenshot WA...' : 'Tambah sinyal dari WA'}
       </div>
-      {waExtractError && <p className="muted" style={{ color: '#ff6b6b' }}>{waExtractError}</p>}
+      {waExtractError && <p className="muted text-danger">{waExtractError}</p>}
 
       {loading && <p className="muted">Memuat sinyal...</p>}
-      {error && <p className="muted" style={{ color: '#ff6b6b' }}>{error}</p>}
+      {error && <p className="muted text-danger">{error}</p>}
 
       {!loading && signals.length === 0 && !error && (
         <p className="muted">Belum ada sinyal baru hari ini.</p>
@@ -563,11 +568,11 @@ export default function SinyalPage() {
 
       <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>Day Trade</p>
       {dayTradeSignals.length === 0 && <p className="muted">Belum ada sinyal day trade hari ini.</p>}
-      {dayTradeSignals.map(renderCard)}
+      {dayTradeSignals.map((s, i) => renderCard(s, i === 0 && !s.willSkip))}
 
       <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Swing Trade</p>
       {swingTradeSignals.length === 0 && <p className="muted">Belum ada sinyal swing trade hari ini.</p>}
-      {swingTradeSignals.map(renderCard)}
+      {swingTradeSignals.map((s, i) => renderCard(s, i === 0 && !s.willSkip))}
 
       <button className="btn" style={{ marginTop: 16, width: '100%' }} onClick={() => { signOut(); setToken(null); }}>
         Keluar
