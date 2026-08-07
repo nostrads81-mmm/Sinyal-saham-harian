@@ -62,29 +62,49 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Gemini occasionally answers with a 503 "model overloaded, try again
+  // later" during traffic spikes - that's on Google's end, not a real
+  // failure, so it's worth a couple of quick automatic retries before
+  // making the user paste the screenshot again themselves. 429 (daily
+  // quota exhausted) is not retried since waiting a few seconds never
+  // helps there.
+  const RETRYABLE_STATUSES = [503, 500, 504];
+  const MAX_ATTEMPTS = 3;
+  const RETRY_DELAY_MS = [800, 1600];
+
   try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: WA_SIGNAL_PROMPT },
-              { inline_data: { mime_type: mimeType, data: image } },
-            ],
-          }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: WA_SIGNAL_SCHEMA,
-          },
-        }),
-      }
-    );
+    let geminiRes;
+    let errText;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: WA_SIGNAL_PROMPT },
+                { inline_data: { mime_type: mimeType, data: image } },
+              ],
+            }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              responseSchema: WA_SIGNAL_SCHEMA,
+            },
+          }),
+        }
+      );
+
+      if (geminiRes.ok) break;
+
+      errText = await geminiRes.text();
+      const isLastAttempt = attempt === MAX_ATTEMPTS - 1;
+      if (!RETRYABLE_STATUSES.includes(geminiRes.status) || isLastAttempt) break;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS[attempt]));
+    }
 
     if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
       if (geminiRes.status === 429) {
         res.status(429).json({
           error: 'Kuota harian AI untuk baca screenshot WA sudah habis (maks 20x/hari di paket gratis). Coba lagi setelah kuota reset, atau aktifkan billing di Google AI Studio untuk kuota lebih besar.',
