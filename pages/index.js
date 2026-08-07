@@ -369,12 +369,10 @@ export default function SinyalPage() {
             {s.willSkip && s.skipReason === 'modal-habis' && (
               <span className="badge badge-warning">skip · modal habis</span>
             )}
-            {!s.willSkip && (
-              <span className="score-chip">
-                <span className="score-num">{s.score.toFixed(1)}</span>
-                <span className="score-lbl">skor</span>
-              </span>
-            )}
+            <span className="score-chip">
+              <span className="score-num">{s.score.toFixed(1)}</span>
+              <span className="score-lbl">skor</span>
+            </span>
             <TradingViewButton onClick={() => toggleTv(cardKey)} active={tvOpen.has(cardKey)} />
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
               copy
