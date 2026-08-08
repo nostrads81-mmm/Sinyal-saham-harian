@@ -342,9 +342,11 @@ export default function SinyalPage() {
   if (!token) {
     return (
       <div className="center-box">
-        <p>Masuk dengan akun Google (sigits81@gmail.com) untuk melihat sinyal hari ini.</p>
-        <button className="btn btn-primary" onClick={handleSignIn}>Sign in dengan Google</button>
-        {error && <p className="muted text-danger">{error}</p>}
+        <div className="login-icon">📈</div>
+        <h1 className="login-title">Sinyal Saham Harian</h1>
+        <p className="login-sub">Masuk dengan akun Google untuk melihat sinyal hari ini.</p>
+        <button className="btn btn-primary login-btn" onClick={handleSignIn}>Sign in dengan Google</button>
+        {error && <p className="muted text-danger" style={{ marginTop: 12 }}>{error}</p>}
       </div>
     );
   }
