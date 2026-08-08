@@ -98,6 +98,12 @@ a { color: inherit; text-decoration: none; }
 
 .app-main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* align-items defaults to stretch, so full-width children behave exactly
+     like they did under plain block layout - this only exists so a
+     flex:1 child (.center-box, the login screen) can actually center
+     itself vertically in the remaining viewport height. */
   padding: 20px 16px 96px;
 }
 
@@ -405,7 +411,45 @@ a { color: inherit; text-decoration: none; }
 .stat-label { font-size: calc(12px * var(--text-scale)); color: var(--text-muted); font-weight: calc(500 + var(--fw-boost)); }
 .stat-value { font-size: calc(20px * var(--text-scale)); font-weight: calc(800 + var(--fw-boost)); margin-top: 3px; letter-spacing: -0.01em; }
 
-.center-box { text-align: center; padding: 48px 16px; color: var(--text-muted); }
+.center-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+}
+.login-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(28px * var(--text-scale));
+  /* Same gold coin treatment as the score badge (see .score-chip) - reuses
+     the app's one fixed "brand mark" color instead of inventing another. */
+  background: radial-gradient(circle at 32% 28%, var(--score-gold-light), var(--score-gold-mid) 55%, var(--score-gold-dark) 100%);
+  box-shadow: 0 0 0 1px var(--score-gold-ring), 0 8px 20px rgba(0, 0, 0, 0.25);
+  margin-bottom: 18px;
+}
+.login-title {
+  font-size: calc(22px * var(--text-scale));
+  font-weight: calc(800 + var(--fw-boost));
+  color: var(--text);
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+.login-sub {
+  font-size: calc(14px * var(--text-scale));
+  color: var(--text-muted);
+  margin: 0 0 24px;
+  max-width: 280px;
+  line-height: 1.5;
+}
+.login-btn { padding: 12px 28px; font-size: calc(14px * var(--text-scale)); }
 
 .wa-paste-zone {
   background: var(--surface);
