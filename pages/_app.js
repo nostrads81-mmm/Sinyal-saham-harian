@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import Head from 'next/head';
 import { Inter } from 'next/font/google';
 import BottomNav from '../components/BottomNav';
-import { applyTheme, getStoredTheme } from '../lib/theme';
+import {
+  applyTheme, getStoredTheme, applyTextScale, getStoredTextScale, applyBold, getStoredBold,
+} from '../lib/theme';
 import '../styles/globals.css';
 
 // Inter - the geometric grotesk most trading/fintech apps default to (clean,
@@ -14,6 +16,8 @@ const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-int
 export default function App({ Component, pageProps }) {
   useEffect(() => {
     applyTheme(getStoredTheme());
+    applyTextScale(getStoredTextScale());
+    applyBold(getStoredBold());
   }, []);
 
   return (

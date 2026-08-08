@@ -32,6 +32,14 @@
   --score-gold-dark: #b8862f;
   --score-gold-ink: #241800;
   --score-gold-ring: rgba(232, 176, 75, 0.35);
+  /* Text size ("zoom") and boldness, user-adjustable from Pengaturan (see
+     lib/theme.js) and applied as inline custom properties on <html>.
+     Every font-size/font-weight in this file routes through these two so
+     both settings apply app-wide from one place, without a rem/em rewrite -
+     multiplying literal px values and adding to literal weights works the
+     same everywhere calc() is supported. */
+  --text-scale: 1;
+  --fw-boost: 0;
 }
 
 html[data-theme="light"] {
@@ -65,6 +73,11 @@ html, body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Elements below with no explicit font-weight of their own (plain
+     paragraphs, muted captions) render at the browser default (400) -
+     stating it here explicitly means the "Tebal tulisan" boost reaches
+     them too, not just headings/labels that already set a weight. */
+  font-weight: calc(400 + var(--fw-boost));
 }
 
 a { color: inherit; text-decoration: none; }
@@ -108,14 +121,14 @@ a { color: inherit; text-decoration: none; }
   text-align: center;
   padding: 8px 0;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: calc(11px * var(--text-scale));
   border-radius: var(--radius-sm);
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .nav-item.active { color: var(--accent); background: var(--badge-bg); }
-.nav-icon { display: block; font-size: 19px; margin-bottom: 2px; }
-.nav-label { font-weight: 600; }
+.nav-icon { display: block; font-size: calc(19px * var(--text-scale)); margin-bottom: 2px; }
+.nav-label { font-weight: calc(600 + var(--fw-boost)); }
 
 .page-header {
   /* Stays put while the card list scrolls underneath it, instead of
@@ -133,8 +146,8 @@ a { color: inherit; text-decoration: none; }
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
-.page-title { font-size: 21px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
-.page-sub { font-size: 13px; color: var(--text-muted); margin: 3px 0 0; }
+.page-title { font-size: calc(21px * var(--text-scale)); font-weight: calc(800 + var(--fw-boost)); margin: 0; letter-spacing: -0.01em; }
+.page-sub { font-size: calc(13px * var(--text-scale)); color: var(--text-muted); margin: 3px 0 0; }
 
 /* "Sisa modal" promoted to the header's hero number - it's what matters
    most before deciding on a new position - with slot count as a compact
@@ -149,15 +162,15 @@ a { color: inherit; text-decoration: none; }
   margin-top: 14px;
 }
 .hero-label {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: calc(700 + var(--fw-boost));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-faint);
 }
 .hero-value {
-  font-size: 26px;
-  font-weight: 800;
+  font-size: calc(26px * var(--text-scale));
+  font-weight: calc(800 + var(--fw-boost));
   letter-spacing: -0.02em;
   color: var(--accent);
   margin-top: 2px;
@@ -165,8 +178,8 @@ a { color: inherit; text-decoration: none; }
   overflow-wrap: anywhere;
 }
 .slot-pill {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: calc(700 + var(--fw-boost));
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--surface-2);
@@ -190,15 +203,15 @@ a { color: inherit; text-decoration: none; }
   padding: 8px 10px;
 }
 .sub-box-label {
-  font-size: 9.5px;
-  font-weight: 700;
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: calc(700 + var(--fw-boost));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-faint);
 }
 .sub-box-value {
-  font-size: 13px;
-  font-weight: 800;
+  font-size: calc(13px * var(--text-scale));
+  font-weight: calc(800 + var(--fw-boost));
   margin-top: 2px;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -210,8 +223,8 @@ a { color: inherit; text-decoration: none; }
   color: var(--text);
   border-radius: var(--radius-sm);
   padding: 9px 14px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: calc(13px * var(--text-scale));
+  font-weight: calc(600 + var(--fw-boost));
   cursor: pointer;
   transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
 }
@@ -222,7 +235,7 @@ a { color: inherit; text-decoration: none; }
   background: linear-gradient(180deg, var(--accent), var(--accent-strong));
   border-color: var(--accent-strong);
   color: var(--accent-ink);
-  font-weight: 700;
+  font-weight: calc(700 + var(--fw-boost));
   box-shadow: 0 4px 14px rgba(232, 176, 75, 0.25);
 }
 
@@ -257,8 +270,8 @@ a { color: inherit; text-decoration: none; }
 .card-row { display: flex; justify-content: space-between; align-items: center; }
 
 .badge {
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: calc(11.5px * var(--text-scale));
+  font-weight: calc(700 + var(--fw-boost));
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--badge-bg);
@@ -285,15 +298,15 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 0 0 1px var(--score-gold-ring), 0 2px 6px rgba(0, 0, 0, 0.28);
 }
 .score-chip .score-num {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: calc(15px * var(--text-scale));
+  font-weight: calc(800 + var(--fw-boost));
   color: var(--score-gold-ink);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 .score-chip .score-lbl {
-  font-size: 7.5px;
-  font-weight: 700;
+  font-size: calc(7.5px * var(--text-scale));
+  font-weight: calc(700 + var(--fw-boost));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--score-gold-ink);
@@ -301,10 +314,10 @@ a { color: inherit; text-decoration: none; }
   margin-top: 1px;
 }
 
-.muted { color: var(--text-muted); font-size: 13px; }
+.muted { color: var(--text-muted); font-size: calc(13px * var(--text-scale)); }
 .skip-card { opacity: 0.4; filter: saturate(0.75); }
 
-.ticker { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+.ticker { font-size: calc(18px * var(--text-scale)); font-weight: calc(800 + var(--fw-boost)); letter-spacing: -0.01em; }
 .text-danger { color: var(--danger); }
 .text-success { color: var(--success); }
 
@@ -345,17 +358,17 @@ a { color: inherit; text-decoration: none; }
 .range-label:last-child { text-align: right; }
 .range-label .metric-label { display: block; }
 .range-label .metric-value {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: calc(15px * var(--text-scale));
+  font-weight: calc(800 + var(--fw-boost));
   margin-top: 1px;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
-.range-label .metric-sub { font-size: 10.5px; font-weight: 600; margin-top: 1px; }
+.range-label .metric-sub { font-size: calc(10.5px * var(--text-scale)); font-weight: calc(600 + var(--fw-boost)); margin-top: 1px; }
 .range-label.sl .metric-value, .range-label.sl .metric-sub { color: var(--danger); }
 .range-label.tp .metric-value, .range-label.tp .metric-sub { color: var(--success); }
-.metric-label { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
-.metric-sub { font-size: 10.5px; font-weight: 600; margin-top: 2px; }
+.metric-label { font-size: calc(10.5px * var(--text-scale)); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; font-weight: calc(700 + var(--fw-boost)); }
+.metric-sub { font-size: calc(10.5px * var(--text-scale)); font-weight: calc(600 + var(--fw-boost)); margin-top: 2px; }
 
 .position-box {
   margin-top: 10px;
@@ -376,8 +389,8 @@ a { color: inherit; text-decoration: none; }
    not part of the headline number. */
 .position-box .pb-note {
   display: block;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: calc(600 + var(--fw-boost));
   color: var(--warning);
   margin-top: 6px;
 }
@@ -389,8 +402,8 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--radius-sm);
   padding: 12px;
 }
-.stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
-.stat-value { font-size: 20px; font-weight: 800; margin-top: 3px; letter-spacing: -0.01em; }
+.stat-label { font-size: calc(12px * var(--text-scale)); color: var(--text-muted); font-weight: calc(500 + var(--fw-boost)); }
+.stat-value { font-size: calc(20px * var(--text-scale)); font-weight: calc(800 + var(--fw-boost)); margin-top: 3px; letter-spacing: -0.01em; }
 
 .center-box { text-align: center; padding: 48px 16px; color: var(--text-muted); }
 
@@ -404,9 +417,11 @@ a { color: inherit; text-decoration: none; }
   /* Never go below 16px on a focusable/editable element - iOS Safari
      auto-zooms the whole page on focus when the computed font-size is
      smaller than that, and in PWA/standalone mode it can get stuck zoomed
-     in instead of resetting on blur. */
+     in instead of resetting on blur. Deliberately NOT scaled by
+     --text-scale (unlike other font-size rules) so it can't drop below
+     that floor even when the user picks the "Kecil" text size. */
   font-size: 16px;
-  font-weight: 600;
+  font-weight: calc(600 + var(--fw-boost));
   outline: none;
   min-height: 18px;
   text-align: center;
@@ -430,7 +445,7 @@ textarea:focus, input:focus {
   border-color: var(--accent);
 }
 
-.icon-btn { padding: 9px 11px; font-size: 15px; line-height: 1; }
+.icon-btn { padding: 9px 11px; font-size: calc(15px * var(--text-scale)); line-height: 1; }
 
 .sheet-backdrop {
   position: fixed;
@@ -459,13 +474,13 @@ textarea:focus, input:focus {
   margin: 2px auto 14px;
 }
 
-.sheet-title { font-size: 16px; font-weight: 700; margin: 0 0 16px; letter-spacing: -0.01em; }
+.sheet-title { font-size: calc(16px * var(--text-scale)); font-weight: calc(700 + var(--fw-boost)); margin: 0 0 16px; letter-spacing: -0.01em; }
 
 .field { margin-bottom: 14px; }
 .field-label {
   display: block;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: calc(700 + var(--fw-boost));
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-faint);
@@ -485,8 +500,8 @@ textarea:focus, input:focus {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: calc(13px * var(--text-scale));
+  font-weight: calc(600 + var(--fw-boost));
   padding: 8px 0;
   border-radius: 7px;
   cursor: pointer;

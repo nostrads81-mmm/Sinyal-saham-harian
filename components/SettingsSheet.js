@@ -1,16 +1,29 @@
 import { useEffect, useState } from 'react';
-import { getStoredTheme, setStoredTheme } from '../lib/theme';
+import {
+  getStoredTheme, setStoredTheme, getStoredTextScale, setStoredTextScale, getStoredBold, setStoredBold,
+} from '../lib/theme';
+
+const TEXT_SCALE_OPTIONS = [
+  { value: 'kecil', label: 'Kecil' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'besar', label: 'Besar' },
+  { value: 'extra-besar', label: 'Extra' },
+];
 
 export default function SettingsSheet({ open, onClose, capital, maxSlots, onSave, saving }) {
   const [capitalInput, setCapitalInput] = useState(String(capital));
   const [slotsInput, setSlotsInput] = useState(String(maxSlots));
   const [theme, setTheme] = useState('dark');
+  const [textScale, setTextScale] = useState('normal');
+  const [bold, setBold] = useState(false);
 
   useEffect(() => {
     if (open) {
       setCapitalInput(String(capital));
       setSlotsInput(String(maxSlots));
       setTheme(getStoredTheme());
+      setTextScale(getStoredTextScale());
+      setBold(getStoredBold());
     }
   }, [open, capital, maxSlots]);
 
@@ -19,6 +32,16 @@ export default function SettingsSheet({ open, onClose, capital, maxSlots, onSave
   function chooseTheme(next) {
     setTheme(next);
     setStoredTheme(next);
+  }
+
+  function chooseTextScale(next) {
+    setTextScale(next);
+    setStoredTextScale(next);
+  }
+
+  function chooseBold(next) {
+    setBold(next);
+    setStoredBold(next);
   }
 
   return (
@@ -45,7 +68,7 @@ export default function SettingsSheet({ open, onClose, capital, maxSlots, onSave
           />
         </div>
 
-        <div className="field" style={{ marginBottom: 4 }}>
+        <div className="field">
           <label className="field-label">Tampilan</label>
           <div className="segmented">
             <button
@@ -61,6 +84,42 @@ export default function SettingsSheet({ open, onClose, capital, maxSlots, onSave
               onClick={() => chooseTheme('light')}
             >
               Terang
+            </button>
+          </div>
+        </div>
+
+        <div className="field">
+          <label className="field-label">Ukuran teks</label>
+          <div className="segmented">
+            {TEXT_SCALE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`seg-btn ${textScale === opt.value ? 'active' : ''}`}
+                onClick={() => chooseTextScale(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="field" style={{ marginBottom: 4 }}>
+          <label className="field-label">Ketebalan teks</label>
+          <div className="segmented">
+            <button
+              type="button"
+              className={`seg-btn ${!bold ? 'active' : ''}`}
+              onClick={() => chooseBold(false)}
+            >
+              Normal
+            </button>
+            <button
+              type="button"
+              className={`seg-btn ${bold ? 'active' : ''}`}
+              onClick={() => chooseBold(true)}
+            >
+              Tebal
             </button>
           </div>
         </div>
