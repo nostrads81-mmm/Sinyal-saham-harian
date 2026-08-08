@@ -80,6 +80,10 @@ export default function RekapanPage() {
   const savingRef = useRef(false);
   const [expandedRow, setExpandedRow] = useState(null);
   const [tvOpen, setTvOpen] = useState(new Set());
+  // "Sudah terjual" list is hidden by default - most visits only care
+  // about open positions, so closed history stays out of the way until
+  // explicitly asked for by clicking the section header.
+  const [showClosed, setShowClosed] = useState(false);
 
   function toggleTv(rowNumber) {
     setTvOpen((prev) => {
@@ -412,8 +416,19 @@ export default function RekapanPage() {
 
       {settings && closedEntries.length > 0 && (
         <>
-          <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Sudah terjual</p>
-          {closedEntries.map((e) => {
+          <button
+            type="button"
+            className="card-row"
+            style={{
+              width: '100%', background: 'none', border: 'none', padding: 0, marginTop: 16, marginBottom: 8, cursor: 'pointer',
+              font: 'inherit', color: 'inherit', textAlign: 'left',
+            }}
+            onClick={() => setShowClosed((v) => !v)}
+          >
+            <span style={{ fontWeight: 600 }}>Sudah terjual ({closedEntries.length})</span>
+            <span className="muted">{showClosed ? 'Sembunyikan ▴' : 'Tampilkan ▾'}</span>
+          </button>
+          {showClosed && closedEntries.map((e) => {
             const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
             const lot = parseLot(e.catatan);
             const net = computeNetPnl(e.entry, e.hargaExit, lot, settings);
