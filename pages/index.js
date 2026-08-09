@@ -7,7 +7,7 @@ import {
 } from '../lib/sheets';
 import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
 import SettingsSheet from '../components/SettingsSheet';
-import { getDismissedSignals, dismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
+import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
 import TradingViewButton from '../components/TradingViewButton';
 
@@ -292,6 +292,10 @@ export default function SinyalPage() {
         capturedAt: new Date().toISOString(),
       }));
       await addWaSignalRows(token, sheetId, signals);
+      // A stock dismissed in an earlier, unrelated signal round shouldn't
+      // keep hiding this brand new one just because it shares the same
+      // symbol - the user is explicitly re-adding it right now.
+      signals.forEach((s) => undismissSignal(s.stock));
       setWaReview(null);
       setRefreshKey((k) => k + 1);
     } catch (e) {
