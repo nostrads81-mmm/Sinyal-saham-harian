@@ -491,6 +491,43 @@ textarea:focus, input:focus {
 
 .icon-btn { padding: 9px 11px; font-size: calc(15px * var(--text-scale)); line-height: 1; }
 
+/* Inline entry-price editor, anchored under the ENTRY column of the range
+   bar labels - a small pencil toggles a compact input + confirm/cancel
+   pair in place, no separate dialog needed for a single-number edit. */
+.entry-value-row { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.entry-edit-btn {
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+  line-height: 1;
+  font-size: calc(12px * var(--text-scale));
+}
+.entry-edit-btn:hover { color: var(--accent); }
+.entry-edit { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 1px; }
+.entry-edit-input {
+  width: 84px;
+  padding: 4px 6px;
+  text-align: center;
+}
+.entry-edit-actions { display: flex; gap: 4px; }
+.icon-btn-sm {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: calc(11px * var(--text-scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.icon-btn-sm:disabled { opacity: 0.5; cursor: default; }
+
 .sheet-backdrop {
   position: fixed;
   inset: 0;
