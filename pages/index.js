@@ -360,25 +360,28 @@ export default function SinyalPage() {
     setEntryError(null);
   }
 
-  // Editing the entry price collapses buyLow/buyHigh down to that exact
-  // number instead of just storing a separate override field - the
-  // midpoint-of-range rule that computes `entry` elsewhere stays the single
-  // source of truth, so a manually-fixed entry doesn't need special-casing
-  // anywhere downstream (position sizing, the range bar, etc).
+  // Editing the entry price shifts buyLow/buyHigh by the same delta instead
+  // of collapsing them down to a single number or storing a separate
+  // override field - the midpoint-of-range rule that computes `entry`
+  // elsewhere stays the single source of truth (so position sizing, the
+  // range bar, etc. don't need special-casing), AND the original buy range
+  // width is preserved so "605-630" style context keeps showing under the
+  // entry, just recentered on the price the user actually typed.
   async function submitEditEntry(s) {
     const newEntry = Number(entryInput);
     if (!newEntry || newEntry <= 0) {
       setEntryError('Harga entry tidak valid');
       return;
     }
+    const delta = newEntry - s.entry;
     setEntrySaving(true);
     setEntryError(null);
     try {
       await addWaSignalRows(token, sheetId, [{
         stock: s.stock,
         tradeType: s.tradeType,
-        buyLow: newEntry,
-        buyHigh: newEntry,
+        buyLow: s.buyLow + delta,
+        buyHigh: s.buyHigh + delta,
         sl: s.sl,
         tp1: s.tp1,
         tp2: s.tp2,
