@@ -98,6 +98,11 @@ export default function SinyalPage() {
   const [saveError, setSaveError] = useState(null);
   const savingRef = useRef(false);
 
+  const [editingEntryStock, setEditingEntryStock] = useState(null);
+  const [entryInput, setEntryInput] = useState('');
+  const [entrySaving, setEntrySaving] = useState(false);
+  const [entryError, setEntryError] = useState(null);
+
   const [waExtracting, setWaExtracting] = useState(false);
   const [waSaving, setWaSaving] = useState(false);
   const [waExtractError, setWaExtractError] = useState(null);
@@ -343,6 +348,52 @@ export default function SinyalPage() {
     }
   }
 
+  function openEditEntry(s) {
+    setEditingEntryStock(s.stock);
+    setEntryInput(String(s.entry));
+    setEntryError(null);
+  }
+
+  function closeEditEntry() {
+    setEditingEntryStock(null);
+    setEntryInput('');
+    setEntryError(null);
+  }
+
+  // Editing the entry price collapses buyLow/buyHigh down to that exact
+  // number instead of just storing a separate override field - the
+  // midpoint-of-range rule that computes `entry` elsewhere stays the single
+  // source of truth, so a manually-fixed entry doesn't need special-casing
+  // anywhere downstream (position sizing, the range bar, etc).
+  async function submitEditEntry(s) {
+    const newEntry = Number(entryInput);
+    if (!newEntry || newEntry <= 0) {
+      setEntryError('Harga entry tidak valid');
+      return;
+    }
+    setEntrySaving(true);
+    setEntryError(null);
+    try {
+      await addWaSignalRows(token, sheetId, [{
+        stock: s.stock,
+        tradeType: s.tradeType,
+        buyLow: newEntry,
+        buyHigh: newEntry,
+        sl: s.sl,
+        tp1: s.tp1,
+        tp2: s.tp2,
+        mmPercent: s.mmPercent,
+        capturedAt: s.capturedAt,
+      }]);
+      closeEditEntry();
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setEntryError(e.message);
+    } finally {
+      setEntrySaving(false);
+    }
+  }
+
   if (!token) {
     return (
       <div className="center-box">
@@ -430,8 +481,55 @@ export default function SinyalPage() {
             </div>
             <div className="range-label">
               <span className="metric-label">Entry</span>
-              <div className="metric-value">{s.entry.toLocaleString('id-ID')}</div>
-              {s.buyLow != null && s.buyHigh != null && (
+              {editingEntryStock === s.stock ? (
+                <div className="entry-edit">
+                  <input
+                    type="number"
+                    className="entry-edit-input"
+                    value={entryInput}
+                    onChange={(e) => setEntryInput(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="entry-edit-actions">
+                    <button
+                      type="button"
+                      className="icon-btn-sm"
+                      onClick={() => submitEditEntry(s)}
+                      disabled={entrySaving}
+                      aria-label="Simpan entry"
+                    >
+                      {entrySaving ? '…' : '✓'}
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn-sm"
+                      onClick={closeEditEntry}
+                      disabled={entrySaving}
+                      aria-label="Batal edit entry"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="metric-value entry-value-row">
+                  {s.entry.toLocaleString('id-ID')}
+                  {s.source === 'wa' && (
+                    <button
+                      type="button"
+                      className="entry-edit-btn"
+                      onClick={() => openEditEntry(s)}
+                      aria-label="Edit harga entry"
+                    >
+                      ✎
+                    </button>
+                  )}
+                </div>
+              )}
+              {editingEntryStock === s.stock && entryError && (
+                <div className="metric-sub text-danger">{entryError}</div>
+              )}
+              {editingEntryStock !== s.stock && s.buyLow != null && s.buyHigh != null && s.buyLow !== s.buyHigh && (
                 <div className="metric-sub muted">
                   {s.buyLow.toLocaleString('id-ID')}-{s.buyHigh.toLocaleString('id-ID')}
                 </div>
