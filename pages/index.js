@@ -549,6 +549,9 @@ export default function SinyalPage() {
               <div className="range-label tp">
                 <span className="metric-label">TP2</span>
                 <div className="metric-value">{s.tp2.toLocaleString('id-ID')}</div>
+                {pos && pos.lembar > 0 && (
+                  <div className="metric-sub">+{formatRupiah((s.tp2 - s.entry) * pos.lembar)}</div>
+                )}
               </div>
             )}
           </div>
