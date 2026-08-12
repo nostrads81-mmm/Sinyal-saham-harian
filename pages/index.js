@@ -73,10 +73,13 @@ function fileToBase64(file) {
 }
 
 function buildAiPrompt(signals) {
-  const lines = signals.map((s) =>
-    `${s.stock}: entry ${s.entry}, SL ${s.sl} (${s.slPercent.toFixed(2)}%), TP1 ${s.tp1} (${s.tp1Percent.toFixed(2)}%)`
-  );
-  return `Tolong analisa saham-saham berikut, kasih tau trennya kemana dan peluang naiknya:\n\n${lines.join('\n')}`;
+  const lines = signals.map((s) => {
+    const range = s.buyLow != null && s.buyHigh != null && s.buyLow !== s.buyHigh
+      ? `range beli ${s.buyLow}-${s.buyHigh}, `
+      : '';
+    return `${s.stock}: ${range}entry estimasi ${s.entry}, SL ${s.sl} (${s.slPercent.toFixed(2)}%), TP1 ${s.tp1} (${s.tp1Percent.toFixed(2)}%)`;
+  });
+  return `Tolong analisa saham-saham berikut, kasih tau trennya kemana, peluang naiknya, dan menurut kamu sebaiknya entry di harga berapa dari range yang tersedia:\n\n${lines.join('\n')}`;
 }
 
 export default function SinyalPage() {
