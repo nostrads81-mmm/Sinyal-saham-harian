@@ -541,21 +541,20 @@ export default function SinyalPage() {
               )}
             </div>
             <div className="range-label tp">
-              <span className="metric-label">TP1</span>
-              <div className="metric-value">{s.tp1?.toLocaleString('id-ID')}</div>
+              <span className="metric-label">TP</span>
+              <div className="metric-value">{s.tpMid.toLocaleString('id-ID')}</div>
               {pos && pos.lembar > 0 && (
-                <div className="metric-sub">+{formatRupiah((s.tp1 - s.entry) * pos.lembar)}</div>
+                <div className="metric-sub">+{formatRupiah((s.tpMid - s.entry) * pos.lembar)}</div>
               )}
-            </div>
-            {s.tp2 != null && (
-              <div className="range-label tp">
-                <span className="metric-label">TP2</span>
-                <div className="metric-value">{s.tp2.toLocaleString('id-ID')}</div>
-                {pos && pos.lembar > 0 && (
-                  <div className="metric-sub">+{formatRupiah((s.tp2 - s.entry) * pos.lembar)}</div>
-                )}
+              {/* TP1/TP2 kept as small reference text under the combined TP
+                  value above (which is their midpoint, see computeScore in
+                  lib/scoring.js) - the big number is what's used for the
+                  score, but the individual targets are still worth knowing. */}
+              <div className="metric-sub muted">
+                TP1 {s.tp1?.toLocaleString('id-ID')}
+                {s.tp2 != null && <> · TP2 {s.tp2.toLocaleString('id-ID')}</>}
               </div>
-            )}
+            </div>
           </div>
           {s.tp3 != null && (
             <p className="muted" style={{ marginTop: 4 }}>TP3: {s.tp3.toLocaleString('id-ID')}</p>
