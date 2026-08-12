@@ -16,12 +16,18 @@ const ENTRY_MODE_OPTIONS = [
   { value: 'high', label: 'Atas' },
 ];
 
+const TP_MODE_OPTIONS = [
+  { value: 'separate', label: 'TP1 & TP2' },
+  { value: 'mid', label: 'TP Tengah' },
+];
+
 export default function SettingsSheet({
-  open, onClose, capital, maxSlots, entryMode, onSave, saving,
+  open, onClose, capital, maxSlots, entryMode, tpMode, onSave, saving,
 }) {
   const [capitalInput, setCapitalInput] = useState(String(capital));
   const [slotsInput, setSlotsInput] = useState(String(maxSlots));
   const [entryModeInput, setEntryModeInput] = useState('mid');
+  const [tpModeInput, setTpModeInput] = useState('mid');
   const [theme, setTheme] = useState('dark');
   const [textScale, setTextScale] = useState('normal');
   const [bold, setBold] = useState(false);
@@ -31,11 +37,12 @@ export default function SettingsSheet({
       setCapitalInput(String(capital));
       setSlotsInput(String(maxSlots));
       setEntryModeInput(entryMode || 'mid');
+      setTpModeInput(tpMode || 'mid');
       setTheme(getStoredTheme());
       setTextScale(getStoredTextScale());
       setBold(getStoredBold());
     }
-  }, [open, capital, maxSlots, entryMode]);
+  }, [open, capital, maxSlots, entryMode, tpMode]);
 
   if (!open) return null;
 
@@ -101,6 +108,25 @@ export default function SettingsSheet({
             </div>
             <p className="field-hint">
               Harga entry yang dipakai dari rentang buy WA - batas bawah, tengah (rata-rata), atau batas atas.
+            </p>
+          </div>
+
+          <div className="field">
+            <label className="field-label">Tampilan TP</label>
+            <div className="segmented">
+              {TP_MODE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`seg-btn ${tpModeInput === opt.value ? 'active' : ''}`}
+                  onClick={() => setTpModeInput(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="field-hint">
+              TP1 &amp; TP2 tampil terpisah, atau digabung jadi satu "TP Tengah" (titik tengah keduanya). Skor sinyal ikut memakai basis yang sama.
             </p>
           </div>
         </div>
@@ -173,6 +199,7 @@ export default function SettingsSheet({
               capital: Number(capitalInput) || capital,
               maxSlots: Number(slotsInput) || maxSlots,
               entryMode: entryModeInput,
+              tpMode: tpModeInput,
             })}
           >
             {saving ? 'Menyimpan...' : 'Simpan'}
