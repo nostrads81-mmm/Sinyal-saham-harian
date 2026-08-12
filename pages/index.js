@@ -156,7 +156,7 @@ export default function SinyalPage() {
         setJournaledStocks(journaled);
         setUsedSlots(occupiedSlots);
         const parsed = WATCHLIST_SHEET_ENABLED
-          ? parseWatchlistRows(rawRows, { entryMode: settingsData.entryMode })
+          ? parseWatchlistRows(rawRows, { entryMode: settingsData.entryMode, tpMode: settingsData.tpMode })
           : [];
 
         let effectiveWaRaw = waRaw;
@@ -168,7 +168,9 @@ export default function SinyalPage() {
             effectiveWaRaw = legacy;
           }
         }
-        const waBuilt = effectiveWaRaw.map((s) => buildWaSignal({ ...s, entryMode: settingsData.entryMode }));
+        const waBuilt = effectiveWaRaw.map((s) => buildWaSignal({
+          ...s, entryMode: settingsData.entryMode, tpMode: settingsData.tpMode,
+        }));
         const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);
         if (staleWaStocks.length > 0) await pruneStaleWaSignalRows(token, resolvedSheetId, staleWaStocks);
 
@@ -312,10 +314,14 @@ export default function SinyalPage() {
     }
   }
 
-  async function saveSettings({ capital, maxSlots, entryMode }) {
+  async function saveSettings({
+    capital, maxSlots, entryMode, tpMode,
+  }) {
     setSettingsSaving(true);
     try {
-      await updateSettings(token, sheetId, { capital, maxSlots, entryMode });
+      await updateSettings(token, sheetId, {
+        capital, maxSlots, entryMode, tpMode,
+      });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
     } catch (e) {
@@ -540,21 +546,42 @@ export default function SinyalPage() {
                 </div>
               )}
             </div>
-            <div className="range-label tp">
-              <span className="metric-label">TP</span>
-              <div className="metric-value">{s.tpMid.toLocaleString('id-ID')}</div>
-              {pos && pos.lembar > 0 && (
-                <div className="metric-sub">+{formatRupiah((s.tpMid - s.entry) * pos.lembar)}</div>
-              )}
-              {/* TP1/TP2 kept as small reference text under the combined TP
-                  value above (which is their midpoint, see computeScore in
-                  lib/scoring.js) - the big number is what's used for the
-                  score, but the individual targets are still worth knowing. */}
-              <div className="metric-sub muted">
-                TP1 {s.tp1?.toLocaleString('id-ID')}
-                {s.tp2 != null && <> · TP2 {s.tp2.toLocaleString('id-ID')}</>}
+            {settings && settings.tpMode === 'separate' ? (
+              <>
+                <div className="range-label tp">
+                  <span className="metric-label">TP1</span>
+                  <div className="metric-value">{s.tp1?.toLocaleString('id-ID')}</div>
+                  {pos && pos.lembar > 0 && (
+                    <div className="metric-sub">+{formatRupiah((s.tp1 - s.entry) * pos.lembar)}</div>
+                  )}
+                </div>
+                {s.tp2 != null && (
+                  <div className="range-label tp">
+                    <span className="metric-label">TP2</span>
+                    <div className="metric-value">{s.tp2.toLocaleString('id-ID')}</div>
+                    {pos && pos.lembar > 0 && (
+                      <div className="metric-sub">+{formatRupiah((s.tp2 - s.entry) * pos.lembar)}</div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="range-label tp">
+                <span className="metric-label">TP</span>
+                <div className="metric-value">{s.tpMid.toLocaleString('id-ID')}</div>
+                {pos && pos.lembar > 0 && (
+                  <div className="metric-sub">+{formatRupiah((s.tpMid - s.entry) * pos.lembar)}</div>
+                )}
+                {/* TP1/TP2 kept as small reference text under the combined TP
+                    value above (which is their midpoint, see computeScore in
+                    lib/scoring.js) - the big number is what's used for the
+                    score, but the individual targets are still worth knowing. */}
+                <div className="metric-sub muted">
+                  TP1 {s.tp1?.toLocaleString('id-ID')}
+                  {s.tp2 != null && <> · TP2 {s.tp2.toLocaleString('id-ID')}</>}
+                </div>
               </div>
-            </div>
+            )}
           </div>
           {s.tp3 != null && (
             <p className="muted" style={{ marginTop: 4 }}>TP3: {s.tp3.toLocaleString('id-ID')}</p>
@@ -750,6 +777,7 @@ export default function SinyalPage() {
         capital={settings ? settings.capital : 0}
         maxSlots={settings ? settings.maxSlots : 0}
         entryMode={settings ? settings.entryMode : 'mid'}
+        tpMode={settings ? settings.tpMode : 'mid'}
         onSave={saveSettings}
         saving={settingsSaving}
       />
