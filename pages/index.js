@@ -155,7 +155,9 @@ export default function SinyalPage() {
         setInvestedCapital(invested);
         setJournaledStocks(journaled);
         setUsedSlots(occupiedSlots);
-        const parsed = WATCHLIST_SHEET_ENABLED ? parseWatchlistRows(rawRows) : [];
+        const parsed = WATCHLIST_SHEET_ENABLED
+          ? parseWatchlistRows(rawRows, { entryMode: settingsData.entryMode })
+          : [];
 
         let effectiveWaRaw = waRaw;
         if (waRaw.length === 0) {
@@ -166,7 +168,7 @@ export default function SinyalPage() {
             effectiveWaRaw = legacy;
           }
         }
-        const waBuilt = effectiveWaRaw.map(buildWaSignal);
+        const waBuilt = effectiveWaRaw.map((s) => buildWaSignal({ ...s, entryMode: settingsData.entryMode }));
         const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);
         if (staleWaStocks.length > 0) await pruneStaleWaSignalRows(token, resolvedSheetId, staleWaStocks);
 
@@ -310,10 +312,10 @@ export default function SinyalPage() {
     }
   }
 
-  async function saveSettings({ capital, maxSlots }) {
+  async function saveSettings({ capital, maxSlots, entryMode }) {
     setSettingsSaving(true);
     try {
-      await updateSettings(token, sheetId, { capital, maxSlots });
+      await updateSettings(token, sheetId, { capital, maxSlots, entryMode });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
     } catch (e) {
@@ -748,6 +750,7 @@ export default function SinyalPage() {
         onClose={() => setSettingsOpen(false)}
         capital={settings ? settings.capital : 0}
         maxSlots={settings ? settings.maxSlots : 0}
+        entryMode={settings ? settings.entryMode : 'mid'}
         onSave={saveSettings}
         saving={settingsSaving}
       />

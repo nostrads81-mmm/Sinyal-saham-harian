@@ -555,7 +555,43 @@ textarea:focus, input:focus {
   margin: 2px auto 14px;
 }
 
+.sheet-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.sheet-header-row .sheet-title { margin: 0; }
+.sheet-close {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(13px * var(--text-scale));
+  cursor: pointer;
+}
+.sheet-close:disabled { opacity: 0.5; cursor: default; }
+
 .sheet-title { font-size: calc(16px * var(--text-scale)); font-weight: calc(700 + var(--fw-boost)); margin: 0 0 16px; letter-spacing: -0.01em; }
+
+/* Settings fields grouped into labeled cards instead of one long flat
+   list - easier to scan as two distinct concerns (money/risk vs. how the
+   app looks) rather than seven fields in a row. */
+.settings-section {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.settings-section-title {
+  font-size: calc(12px * var(--text-scale));
+  font-weight: calc(700 + var(--fw-boost));
+  color: var(--text);
+  margin: 0 0 14px;
+}
+.settings-section .field:last-child { margin-bottom: 0; }
 
 .field { margin-bottom: 14px; }
 .field-label {
@@ -566,6 +602,12 @@ textarea:focus, input:focus {
   letter-spacing: 0.06em;
   color: var(--text-faint);
   margin-bottom: 6px;
+}
+.field-hint {
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-faint);
+  margin: 6px 0 0;
+  line-height: 1.4;
 }
 
 .segmented {
