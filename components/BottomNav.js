@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 const TABS = [
   { href: '/', label: 'Sinyal', icon: '🏠' },
   { href: '/rekapan', label: 'Rekapan', icon: '📋' },
+  { href: '/watchlist', label: 'Watchlist', icon: '📊' },
 ];
 
 export default function BottomNav() {
