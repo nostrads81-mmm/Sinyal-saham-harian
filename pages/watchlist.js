@@ -9,6 +9,26 @@ const STATUS_BADGE = {
   PENDING: { cls: 'badge badge-warning', label: 'pending' },
 };
 
+// "-" is the source sheet's own empty-cell placeholder (e.g. a DAY TRADE
+// row with no TP2/TP3) - treat that the same as a blank cell.
+const has = (v) => v && v !== '-';
+
+// Same style/intent as the "copy" prompt on the Sinyal tab (see
+// buildAiPrompt in pages/index.js) - range + a question about where to
+// enter, since these rows don't carry a pre-computed entry estimate like
+// Sinyal's WA-sourced signals do.
+function buildAiPrompt(rows) {
+  const lines = rows.map((r) => {
+    const parts = [`range beli ${has(r.buyPrice) ? r.buyPrice : '-'}`];
+    if (has(r.sl)) parts.push(`SL ${r.sl}`);
+    if (has(r.tp1)) parts.push(`TP1 ${r.tp1}`);
+    if (has(r.tp2)) parts.push(`TP2 ${r.tp2}`);
+    if (has(r.tp3)) parts.push(`TP3 ${r.tp3}`);
+    return `${r.stock}: ${parts.join(', ')}`;
+  });
+  return `Tolong analisa saham-saham berikut, kasih tau trennya kemana, peluang naiknya, dan menurut kamu sebaiknya entry di harga berapa dari range yang tersedia:\n\n${lines.join('\n')}`;
+}
+
 export default function WatchlistPage() {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -65,17 +85,22 @@ export default function WatchlistPage() {
   const swingTradeRows = rows.filter((r) => r.tradeType === 'SWING TRADE');
   const otherRows = rows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
 
+  function copyRow(r) {
+    navigator.clipboard.writeText(buildAiPrompt([r]));
+  }
+
   function renderRow(r) {
     const badge = STATUS_BADGE[r.status] || (r.status ? { cls: 'badge', label: r.status.toLowerCase() } : null);
-    // The source sheet uses "-" as its own empty-cell placeholder (e.g. a
-    // DAY TRADE row with no TP2/TP3) - treat that the same as a blank cell
-    // instead of printing a bare "TP2 -".
-    const has = (v) => v && v !== '-';
     return (
       <div key={`${r.stock}-${r.date}`} className="card">
         <div className="card-row">
           <span className="ticker">{r.stock}</span>
-          {badge && <span className={badge.cls}>{badge.label}</span>}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {badge && <span className={badge.cls}>{badge.label}</span>}
+            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyRow(r)}>
+              copy
+            </button>
+          </div>
         </div>
         <p className="muted" style={{ marginTop: 4 }}>{r.date}</p>
         <p className="muted" style={{ marginTop: 2 }}>
