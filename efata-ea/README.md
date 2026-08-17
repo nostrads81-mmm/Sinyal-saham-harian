@@ -190,6 +190,14 @@ Metodologi: tuning HANYA di 2015–2016 (in-sample), dinilai di 2017 +
 | **0.03** | **+40,2%** | **+20,5%** | **+19,9%** | −0,9% | **9,4%** |
 | 0.05 | +63,9% | +21,7% | +44,9% | +4,9% | 17,7% |
 | 0.1 | +115,9% | +59,0% | +63,5% | +9,2% | 24,8% |
+| 0.2¹ | +186,6% | +112,3% | +158,7% | +4,6% | 29,1% |
+
+¹ lot 0.2 (`minMarginLev=200`): return simulator spektakuler tapi PALING
+tidak bisa dipercaya — siklus profit $100 per 0.2 lot diambil dari
+pergerakan sangat kecil, wilayah di mana slippage/komisi/spread melebar
+(tak dimodelkan) menggigit paling dalam, dan simulator tanpa stop-out.
+2018 Q1 memperlihatkan asimetrinya: +4,6% sekuartal sambil menanggung
+DD 21,2%. Tier ini bukan untuk perencanaan.
 
 Catatan skala: return TIDAK linier terhadap lot (efek path & margin) —
 di 2016 lot 0.05 hanya menyamai 0.03 (+21,7% vs +20,5%) sementara
