@@ -205,8 +205,11 @@ DD-nya berlipat (17,7% vs 9,4%).
 
 **Konfigurasi final (P1):** magics 10220+10330 · `xLot=3` · `exitPct=1`
 · `exitRR=0` · `exitUSD=0` · `maxLevCut=2` · `minMarginLev=500` ·
-lot 0.03 per $10.000 (≈ `MM=0.3`). Pengaman utama sesungguhnya adalah
-`maxLevCut=2` (tangga marti dipotong di L2), bukan rem margin.
+`lossMaxPersen=15` · lot 0.03 per $10.000 (≈ `MM=0.3`). Pengaman utama
+sesungguhnya adalah `maxLevCut=2` (tangga marti dipotong di L2), bukan
+rem margin. `lossMaxPersen` 25→15 terverifikasi TANPA dampak ke hasil
+(rem darurat tak pernah menyala di 2016, tahun ber-DD terburuk; hasil
+identik di 25/15/10) — diturunkan murni sebagai asuransi rezim buruk.
 
 Catatan jujur: target "≥20%/tahun" tercapai di ketiga tahun penuh yang
 diuji, tapi (a) 2018 Q1 menunjukkan akan ada periode flat, (b) belum
