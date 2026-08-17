@@ -188,7 +188,12 @@ Metodologi: tuning HANYA di 2015–2016 (in-sample), dinilai di 2017 +
 |---|---|---|---|---|---|
 | 0.01 | +15,7% | +9,2% | +7,3% | −0,1% | 3,6% |
 | **0.03** | **+40,2%** | **+20,5%** | **+19,9%** | −0,9% | **9,4%** |
+| 0.05 | +63,9% | +21,7% | +44,9% | +4,9% | 17,7% |
 | 0.1 | +115,9% | +59,0% | +63,5% | +9,2% | 24,8% |
+
+Catatan skala: return TIDAK linier terhadap lot (efek path & margin) —
+di 2016 lot 0.05 hanya menyamai 0.03 (+21,7% vs +20,5%) sementara
+DD-nya berlipat (17,7% vs 9,4%).
 
 **Konfigurasi final (P1):** magics 10220+10330 · `xLot=3` · `exitPct=1`
 · `exitRR=0` · `exitUSD=0` · `maxLevCut=2` · `minMarginLev=500` ·
