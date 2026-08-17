@@ -167,6 +167,40 @@ Kesimpulan:
 4. Semua angka belum termasuk komisi & swap; profit tipis konfigurasi
    robust bisa terkikis swap pada posisi yang menginap.
 
+## Hasil tuning walk-forward (target ≥20%/tahun)
+
+Metodologi: tuning HANYA di 2015–2016 (in-sample), dinilai di 2017 +
+2018 Q1 (out-of-sample). Tahapan & temuan:
+
+1. **Sweep exitRR** (0/1/2/3 × xLot 2/3 × M5/M30, basis i1 cut2):
+   terbaik `exitRR=0` (exit murni via `exitPct=1%`) dan `xLot=3`.
+2. **Portfolio**: gabungan magic **10220 + 10330** (i1 M5 + i1 M30, satu
+   akun) ≈ menjumlahkan return kedua solo tanpa menambah DD berarti.
+   Menambah i2 M30 justru merusak — magic ketiga menyedot margin sampai
+   `minMarginLev` memarkir pending seluruh akun.
+3. **Validasi OOS** (lot 0.01): 2017 +7,3% (PF 1.10, DD 3,2%);
+   2018 Q1 −0,1% (kuartal vol rendah, siklus jarang).
+4. **Sizing**: scaling lot naif GAGAL — dengan `minMarginLev=5000`
+   (default), lot ≥0.05 memicu rem margin sejak level pertama, siklus
+   beku, hasil acak. Dengan `minMarginLev=500` scaling kembali linier:
+
+| Lot (per $10k) | 2015 | 2016 | 2017 | 2018 Q1 | DD maks |
+|---|---|---|---|---|---|
+| 0.01 | +15,7% | +9,2% | +7,3% | −0,1% | 3,6% |
+| **0.03** | **+40,2%** | **+20,5%** | **+19,9%** | −0,9% | **9,4%** |
+| 0.1 | +115,9% | +59,0% | +63,5% | +9,2% | 24,8% |
+
+**Konfigurasi final (P1):** magics 10220+10330 · `xLot=3` · `exitPct=1`
+· `exitRR=0` · `exitUSD=0` · `maxLevCut=2` · `minMarginLev=500` ·
+lot 0.03 per $10.000 (≈ `MM=0.3`). Pengaman utama sesungguhnya adalah
+`maxLevCut=2` (tangga marti dipotong di L2), bukan rem margin.
+
+Catatan jujur: target "≥20%/tahun" tercapai di ketiga tahun penuh yang
+diuji, tapi (a) 2018 Q1 menunjukkan akan ada periode flat, (b) belum
+termasuk komisi/swap, (c) 3 tahun × 1 instrumen bukan jaminan masa
+depan, (d) menurunkan `minMarginLev` melepas satu lapis pengaman —
+di rezim yang lebih buruk dari 2015–2017, DD bisa jauh melebihi 10%.
+
 ## Peringatan
 
 - Hasil backtest **data sintetis tidak bermakna** untuk profitabilitas
