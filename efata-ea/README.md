@@ -111,6 +111,29 @@ Dicatat agar bisa dicek ulang terhadap EA asli saat porting ke MQL5:
     besar dan xLot kecil (mis. xLot=2 + booster ≥ 1.9) pembulatan bisa
     meleset satu level.
 
+## Hasil backtest data riil (XAUUSD M1, Jan–Mar 2018)
+
+Data: tick riil dari repo publik FX-Data (`python3 fetch_xauusd.py`),
+82.685 bar M1. Balance awal $10.000, lot 0.01, spread 20 point, exit
+profit 1% balance (`exitPct=1`, `exitUSD=0`). Bukan janji profit — hanya
+potret perilaku tiap konfigurasi pada 3 bulan data itu:
+
+| Konfigurasi | Balance akhir | PF | Win | Max DD |
+|---|---|---|---|---|
+| i=1 marti ×3, M1 | $9.748 | 0.91 | 45.8% | 2.7% |
+| i=1 pasangan (xLot=1, cut L3), M1 | $9.416 | 0.82 | 35.7% | 6.0% |
+| i=2 fraktal marti ×3, M1 | $9.909 | 0.96 | 48.5% | 1.9% |
+| i=7 chop-guard marti ×3, M1 | $9.766 | 0.92 | 46.5% | 2.5% |
+| i=3 Turtle, M1 | **-$39 (habis)** | 0.90 | 43.7% | 100% |
+| i=9 ichi+RSI, M1 | $10.821 | 1.17 | 61.5% | 12.4% |
+| i=1 marti ×3, M5 | $10.054 | 1.06 | 53.5% | 1.0% |
+| i=1 marti ×3, M30 | $10.048 | 1.15 | 74.1% | 1.1% |
+
+Pengamatan: varian scalping M1 kalah tipis oleh spread (siklus profit 1%
+terlalu kecil dibanding biaya 20 point per order); timeframe lebih besar
+(M5/M30) memperbaiki PF; Turtle 1%-risk di M1 whipsaw sampai habis —
+teknik itu memang dirancang untuk TF besar. Belum termasuk komisi/swap.
+
 ## Peringatan
 
 - Hasil backtest **data sintetis tidak bermakna** untuk profitabilitas
