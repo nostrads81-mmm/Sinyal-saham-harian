@@ -134,6 +134,39 @@ terlalu kecil dibanding biaya 20 point per order); timeframe lebih besar
 (M5/M30) memperbaiki PF; Turtle 1%-risk di M1 whipsaw sampai habis —
 teknik itu memang dirancang untuk TF besar. Belum termasuk komisi/swap.
 
+## Uji konsistensi 2015–2017 (±338k bar M1 riil per tahun)
+
+Return per periode (balance awal $10.000 tiap tahun; PF dalam kurung):
+
+| Konfigurasi | 2015 | 2016 | 2017 | 2018 Q1 |
+|---|---|---|---|---|
+| i1 M5 ×3 e1% cut2 | +7,6% (1.18) | +2,0% (1.04) | +3,4% (1.09) | +0,5% (1.06) |
+| i1 M30 ×3 e1% cut2 | +3,2% (1.19) | +1,4% (1.07) | +3,1% (1.22) | +0,4% (1.15) |
+| i9 M1 | −92% | −84% | −46% | +4,2% |
+| i9 M5 | −27% | −37% | −21% | **+19,8%** |
+| i1 M30 ×2 e1% cut4 | −4,1% | +4,5% | −5,9%¹ | +4,7% |
+| i1 M5 ×2 e2% cut4 | −8,3% | −3,6% | −7,1% | +3,1% |
+| i2 M30 ×3 e1% cut4 | −13,9% | −12,8% | +26,4% | +2,6% |
+
+¹ hanya 1 trade tertutup setahun — siklus macet panjang, equity akhir
+didominasi posisi mengambang.
+
+Kesimpulan:
+
+1. **Grid pada satu kuartal = overfitting.** Semua "juara" grid 2018 Q1
+   (i9 M5, varian cut4) rugi di mayoritas 2015–2017. i9 khususnya rapuh:
+   +19,8% di 2018 Q1 tapi hancur di tiga tahun lainnya.
+2. **Yang robust justru konfigurasi membosankan**: i1 (zona MACD polos)
+   di M5/M30, xLot 3, exitPct 1%, maxLevCut 2 (default dokumen) —
+   positif di EMPAT periode berturut-turut, PF 1.04–1.22, drawdown
+   ≤ 2,7%. Profitnya kecil (+0,4%…+7,6% per tahun) tapi konsisten.
+3. **maxLevCut kecil adalah nyawa martingale ini**: cut2 memotong tangga
+   lebih awal → banyak siklus kecil yang stabil; cut4 membiarkan tangga
+   dalam → beberapa periode bagus, periode lain macet berbulan-bulan
+   dengan floating loss besar.
+4. Semua angka belum termasuk komisi & swap; profit tipis konfigurasi
+   robust bisa terkikis swap pada posisi yang menginap.
+
 ## Peringatan
 
 - Hasil backtest **data sintetis tidak bermakna** untuk profitabilitas
