@@ -249,6 +249,21 @@ export default function RekapanPage() {
   const totalPnlPercent = closedNet.reduce((sum, n) => sum + (n?.pnlPercent || 0), 0);
   const anyEstimated = closedNet.some((n) => n?.estimated);
 
+  // Win rate split by trade type - only meaningful for entries recorded
+  // after TradeType started being saved to the journal (see the
+  // SHEET_HEADERS comment in lib/sheets.js); older entries with no
+  // recorded type are excluded from this breakdown rather than guessed at.
+  function winStatsFor(tradeType) {
+    const list = closed.filter((e) => e.tradeType === tradeType);
+    if (list.length === 0) return null;
+    const net = list.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLot(e.catatan), settings));
+    const w = net.filter((n) => n && n.pnlPercent >= 0).length;
+    return { winRate: (w / list.length) * 100, wins: w, losses: list.length - w, total: list.length };
+  }
+  const dayStats = winStatsFor('DAY TRADE');
+  const swingStats = winStatsFor('SWING TRADE');
+  const untrackedTypeCount = closed.filter((e) => e.tradeType !== 'DAY TRADE' && e.tradeType !== 'SWING TRADE').length;
+
   return (
     <div>
       <div className="page-header card-row">
@@ -297,6 +312,41 @@ export default function RekapanPage() {
           Total P&amp;L% bersih: {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
           {anyEstimated ? ' (sebagian estimasi - lot tidak tercatat)' : ''}
         </p>
+      )}
+
+      {(dayStats || swingStats) && (
+        <div className="settings-section">
+          <p className="settings-section-title">📊 Win rate per jenis</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div className="stat-label">Day Trade</div>
+              <div className="stat-value text-success" style={{ fontSize: 16 }}>
+                {dayStats ? `${dayStats.winRate.toFixed(1)}%` : '-'}
+              </div>
+              {dayStats && (
+                <p className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                  {dayStats.wins} menang / {dayStats.losses} kalah dari {dayStats.total}
+                </p>
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="stat-label">Swing Trade</div>
+              <div className="stat-value text-success" style={{ fontSize: 16 }}>
+                {swingStats ? `${swingStats.winRate.toFixed(1)}%` : '-'}
+              </div>
+              {swingStats && (
+                <p className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                  {swingStats.wins} menang / {swingStats.losses} kalah dari {swingStats.total}
+                </p>
+              )}
+            </div>
+          </div>
+          {untrackedTypeCount > 0 && (
+            <p className="field-hint" style={{ marginTop: 8 }}>
+              {untrackedTypeCount} entri lama belum tercatat jenisnya (Day/Swing), jadi tidak masuk breakdown ini.
+            </p>
+          )}
+        </div>
       )}
 
       {loading && <p className="muted">Memuat jurnal...</p>}

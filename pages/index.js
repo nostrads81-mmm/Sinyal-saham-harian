@@ -221,9 +221,9 @@ export default function SinyalPage() {
         // Leading "'" forces Sheets to keep this as literal text instead of
         // silently converting "03-08-2026" into a date serial number (46237).
         `'${todayDDMMYYYY()}`, s.stock, Number(fillPrice) || s.entry, s.sl, s.tp1, s.tp2 || '',
-        orderFilled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${fillLot || '-'}`,
+        orderFilled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${fillLot || '-'}`, s.tradeType || '',
       ];
-      await appendValues(sheetId, 'DayTrade_Journal!A:J', [row], token);
+      await appendValues(sheetId, 'DayTrade_Journal!A:K', [row], token);
       setRecordingStock(null);
       setRefreshKey((k) => k + 1);
     } catch (e) {
