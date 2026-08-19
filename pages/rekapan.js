@@ -4,6 +4,7 @@ import {
   getJournalEntries, closeJournalEntry, confirmJournalFill, deleteJournalRow, getSettings, updateSettings,
   ensureSheetsInitialized, getOrCreateAppDataSheetId,
 } from '../lib/sheets';
+import { computeTpMid } from '../lib/scoring';
 import SettingsSheet from '../components/SettingsSheet';
 import TradingViewQuote from '../components/TradingViewQuote';
 import TradingViewButton from '../components/TradingViewButton';
@@ -377,8 +378,16 @@ export default function RekapanPage() {
             </p>
             <p className="muted" style={{ marginTop: 2 }}>
               SL <span className="text-danger">{e.sl?.toLocaleString('id-ID') || '-'}</span>
-              {' · '}TP1 <span className="text-success">{e.tp1?.toLocaleString('id-ID') || '-'}</span>
-              {e.tp2 ? <> {' · '}TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></> : null}
+              {settings && settings.tpMode === 'separate' ? (
+                <>
+                  {' · '}TP1 <span className="text-success">{e.tp1?.toLocaleString('id-ID') || '-'}</span>
+                  {e.tp2 ? <> {' · '}TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></> : null}
+                </>
+              ) : (
+                e.tp1 != null && (
+                  <> {' · '}TP <span className="text-success">{computeTpMid(e.tp1, e.tp2).toLocaleString('id-ID')}</span></>
+                )
+              )}
             </p>
 
             {e.status === 'PENDING' && confirmingRow !== e.rowNumber && (
@@ -515,8 +524,16 @@ export default function RekapanPage() {
                     )}
                     <p className="muted" style={{ marginTop: 2 }}>
                       SL <span className="text-danger">{e.sl?.toLocaleString('id-ID') || '-'}</span>
-                      {' · '}TP1 <span className="text-success">{e.tp1?.toLocaleString('id-ID') || '-'}</span>
-                      {e.tp2 ? <> {' · '}TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></> : null}
+                      {settings && settings.tpMode === 'separate' ? (
+                        <>
+                          {' · '}TP1 <span className="text-success">{e.tp1?.toLocaleString('id-ID') || '-'}</span>
+                          {e.tp2 ? <> {' · '}TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></> : null}
+                        </>
+                      ) : (
+                        e.tp1 != null && (
+                          <> {' · '}TP <span className="text-success">{computeTpMid(e.tp1, e.tp2).toLocaleString('id-ID')}</span></>
+                        )
+                      )}
                     </p>
                   </>
                 )}
