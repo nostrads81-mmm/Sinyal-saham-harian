@@ -5,7 +5,9 @@ import {
   getInvestedCapital, getJournaledStocks, getActiveJournalCount, getWaSignalRows, addWaSignalRows, removeWaSignalRow,
   pruneStaleWaSignalRows, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
-import { parseWatchlistRows, rankSignals, buildWaSignal, mergeSignalSources } from '../lib/scoring';
+import {
+  parseWatchlistRows, parseWatchlistRowsRaw, parseSheetDate, rankSignals, buildWaSignal, mergeSignalSources,
+} from '../lib/scoring';
 import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
@@ -146,7 +148,10 @@ export default function SinyalPage() {
         setSheetId(resolvedSheetId);
         await ensureSheetsInitialized(token, resolvedSheetId);
         const [rawRows, settingsData, invested, journaled, occupiedSlots, waRaw] = await Promise.all([
-          WATCHLIST_SHEET_ENABLED ? getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token) : Promise.resolve([]),
+          // Dibaca terus (lepas dari WATCHLIST_SHEET_ENABLED) karena sekarang
+          // juga dipakai buat mencocokkan tanggal sinyal WA dengan tanggal
+          // Watchlist-nya, bukan cuma sebagai sumber sinyal aktif.
+          getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token).catch(() => []),
           getSettings(token, resolvedSheetId),
           getInvestedCapital(token, resolvedSheetId),
           getJournaledStocks(token, resolvedSheetId),
@@ -162,6 +167,17 @@ export default function SinyalPage() {
           ? parseWatchlistRows(rawRows, { entryMode: settingsData.entryMode, tpMode: settingsData.tpMode })
           : [];
 
+        const watchlistDateByStock = new Map();
+        try {
+          for (const r of parseWatchlistRowsRaw(rawRows)) {
+            const d = parseSheetDate(r.date);
+            if (d) watchlistDateByStock.set(r.stock.toUpperCase(), d);
+          }
+        } catch {
+          // Sheet sumber kosong/berubah struktur - abaikan, sinyal WA yang
+          // tidak cocok tetap dianggap "Terbit hari ini".
+        }
+
         let effectiveWaRaw = waRaw;
         if (waRaw.length === 0) {
           const legacy = readLegacyWaSignals();
@@ -172,7 +188,10 @@ export default function SinyalPage() {
           }
         }
         const waBuilt = effectiveWaRaw.map((s) => buildWaSignal({
-          ...s, entryMode: settingsData.entryMode, tpMode: settingsData.tpMode,
+          ...s,
+          entryMode: settingsData.entryMode,
+          tpMode: settingsData.tpMode,
+          watchlistDate: watchlistDateByStock.get(s.stock.trim().toUpperCase()) || null,
         }));
         const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);
         if (staleWaStocks.length > 0) await pruneStaleWaSignalRows(token, resolvedSheetId, staleWaStocks);
