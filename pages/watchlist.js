@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { getAccessToken, getStoredToken } from '../lib/auth';
-import { getValues, WATCHLIST_SHEET_ID, WATCHLIST_RANGE } from '../lib/sheets';
-import { parseWatchlistRowsRaw } from '../lib/scoring';
+import {
+  getValues, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
+  getOrCreateAppDataSheetId, ensureSheetsInitialized, addWaSignalRows,
+} from '../lib/sheets';
+import { parseWatchlistRowsRaw, parseRange, parsePriceWithPercent, parseIndoNumber } from '../lib/scoring';
 
 const STATUS_BADGE = {
   RUNNING: { cls: 'badge badge-success', label: 'running' },
@@ -13,28 +17,15 @@ const STATUS_BADGE = {
 // row with no TP2/TP3) - treat that the same as a blank cell.
 const has = (v) => v && v !== '-';
 
-// Same style/intent as the "copy" prompt on the Sinyal tab (see
-// buildAiPrompt in pages/index.js) - range + a question about where to
-// enter, since these rows don't carry a pre-computed entry estimate like
-// Sinyal's WA-sourced signals do.
-function buildAiPrompt(rows) {
-  const lines = rows.map((r) => {
-    const parts = [`range beli ${has(r.buyPrice) ? r.buyPrice : '-'}`];
-    if (has(r.sl)) parts.push(`SL ${r.sl}`);
-    if (has(r.tp1)) parts.push(`TP1 ${r.tp1}`);
-    if (has(r.tp2)) parts.push(`TP2 ${r.tp2}`);
-    if (has(r.tp3)) parts.push(`TP3 ${r.tp3}`);
-    return `${r.stock}: ${parts.join(', ')}`;
-  });
-  return `Tolong analisa saham-saham berikut, kasih tau trennya kemana, peluang naiknya, dan menurut kamu sebaiknya entry di harga berapa dari range yang tersedia:\n\n${lines.join('\n')}`;
-}
-
 export default function WatchlistPage() {
+  const router = useRouter();
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [recordingStock, setRecordingStock] = useState(null);
+  const [recordError, setRecordError] = useState(null);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -85,8 +76,40 @@ export default function WatchlistPage() {
   const swingTradeRows = rows.filter((r) => r.tradeType === 'SWING TRADE');
   const otherRows = rows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
 
-  function copyRow(r) {
-    navigator.clipboard.writeText(buildAiPrompt([r]));
+  // Turns a watchlist row into a proper WA signal (same shape/sheet as a
+  // pasted WA screenshot) and jumps to Sinyal so the user lands right on
+  // the card - "catat" here means "bring this into Sinyal", not "log a
+  // completed trade" (that's still "Catat order ke jurnal" over there).
+  async function catatRow(r) {
+    setRecordingStock(r.stock);
+    setRecordError(null);
+    try {
+      const range = parseRange(r.buyPrice);
+      const sl = parsePriceWithPercent(r.sl).price;
+      const tp1 = parsePriceWithPercent(r.tp1).price;
+      const tp2 = has(r.tp2) ? parsePriceWithPercent(r.tp2).price : null;
+      const mmPercent = has(r.mmPercent) ? parseIndoNumber(r.mmPercent) : null;
+      if (range.low == null || range.high == null || sl == null || tp1 == null) {
+        throw new Error(`Data harga ${r.stock} tidak lengkap, tidak bisa dicatat sebagai sinyal.`);
+      }
+      const resolvedSheetId = await getOrCreateAppDataSheetId(token);
+      await ensureSheetsInitialized(token, resolvedSheetId);
+      await addWaSignalRows(token, resolvedSheetId, [{
+        stock: r.stock,
+        tradeType: r.tradeType === 'SWING TRADE' ? 'SWING TRADE' : 'DAY TRADE',
+        buyLow: range.low,
+        buyHigh: range.high,
+        sl,
+        tp1,
+        tp2,
+        mmPercent,
+        capturedAt: new Date().toISOString(),
+      }]);
+      router.push('/');
+    } catch (e) {
+      setRecordError(e.message);
+      setRecordingStock(null);
+    }
   }
 
   function renderRow(r) {
@@ -97,8 +120,13 @@ export default function WatchlistPage() {
           <span className="ticker">{r.stock}</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {badge && <span className={badge.cls}>{badge.label}</span>}
-            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyRow(r)}>
-              copy
+            <button
+              className="btn"
+              style={{ padding: '4px 8px' }}
+              onClick={() => catatRow(r)}
+              disabled={recordingStock === r.stock}
+            >
+              {recordingStock === r.stock ? 'Mencatat...' : 'catat'}
             </button>
           </div>
         </div>
@@ -134,6 +162,7 @@ export default function WatchlistPage() {
 
       {loading && <p className="muted">Memuat...</p>}
       {error && <p className="muted text-danger">{error}</p>}
+      {recordError && <p className="muted text-danger">{recordError}</p>}
 
       {!loading && !error && rows.length === 0 && (
         <p className="muted">Tidak ada data di watchlist.</p>
