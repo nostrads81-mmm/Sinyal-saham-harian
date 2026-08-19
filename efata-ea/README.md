@@ -217,6 +217,25 @@ termasuk komisi/swap, (c) 3 tahun × 1 instrumen bukan jaminan masa
 depan, (d) menurunkan `minMarginLev` melepas satu lapis pengaman —
 di rezim yang lebih buruk dari 2015–2017, DD bisa jauh melebihi 10%.
 
+## Sensitivitas spread & revisi preset (P1-r)
+
+Spread XAUUSDc terukur di demo Windsor: **26 point** (asumsi lama 20).
+Dampaknya besar — P1 (exitPct=1) di spread 26: +31,9% / +12,7% / +0,6%
+(2017 nyaris nol); di spread 35 malah rugi. Mitigasi teruji (semua di
+spread 26, lot 0.03/$10k):
+
+| Varian | 2015 | 2016 | 2017 | DD maks |
+|---|---|---|---|---|
+| P1 exitPct=1 | +31,9% | +12,7% | +0,6% | 12,9% |
+| **P1-r: exitPct=2** | **+36,0%** | **+23,8%** | **+14,5%** | 9,7% |
+| M30 solo exitPct=2 | +21,2% | +22,7% | +8,4% | 7,5% |
+
+**Preset direvisi (P1-r): `exitPct=2`** — siklus profit 2x lebih besar
+mengamortisasi biaya spread yang per-siklusnya tetap. Parameter lain
+tidak berubah. M30-solo-e2% adalah cadangan paling tahan bila spread
+riil rata-rata > 30 point. Ukur spread rata-rata di beberapa sesi
+sebelum live; strategi ini tidak layak di spread >= 35.
+
 ## Peringatan
 
 - Hasil backtest **data sintetis tidak bermakna** untuk profitabilitas
