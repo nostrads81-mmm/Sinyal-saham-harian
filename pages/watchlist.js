@@ -5,7 +5,9 @@ import {
   getValues, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
   getOrCreateAppDataSheetId, ensureSheetsInitialized, addWaSignalRows,
 } from '../lib/sheets';
-import { parseWatchlistRowsRaw, parseRange, parsePriceWithPercent, parseIndoNumber } from '../lib/scoring';
+import {
+  parseWatchlistRowsRaw, parseRange, parsePriceWithPercent, parseIndoNumber, parseSheetDate,
+} from '../lib/scoring';
 
 const STATUS_BADGE = {
   RUNNING: { cls: 'badge badge-success', label: 'running' },
@@ -103,7 +105,9 @@ export default function WatchlistPage() {
         tp1,
         tp2,
         mmPercent,
-        capturedAt: new Date().toISOString(),
+        // Pakai tanggal aslinya dari watchlist, bukan waktu klik "catat" -
+        // biar tanggal di Sinyal sama dengan yang tertulis di Watchlist.
+        capturedAt: (parseSheetDate(r.date) || new Date()).toISOString(),
       }]);
       router.push('/');
     } catch (e) {
