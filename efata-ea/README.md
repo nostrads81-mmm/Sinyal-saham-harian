@@ -236,6 +236,23 @@ tidak berubah. M30-solo-e2% adalah cadangan paling tahan bila spread
 riil rata-rata > 30 point. Ukur spread rata-rata di beberapa sesi
 sebelum live; strategi ini tidak layak di spread >= 35.
 
+### Kurva biaya P1-r (per biaya efektif = spread + komisi-ekuivalen)
+
+Komisi dikonversi ke point: $1/lot = 1 point XAUUSD. Akun Windsor Zero
+($8/lot RT = 8 pt + raw spread ~8-15 pt -> efektif ~16-23 pt) vs cent
+(26 pt tanpa komisi):
+
+| Biaya efektif | 2015 | 2016 | 2017 | DD maks |
+|---|---|---|---|---|
+| 15 pt | +48,0% | +44,9% | +38,0% | 6,4% |
+| 18 pt (Zero optimis) | +48,8% | +33,4% | +32,4% | 8,2% |
+| 22 pt (Zero konservatif) | +44,5% | +29,6% | +20,7% | 9,0% |
+| 26 pt (cent terukur) | +36,0% | +23,8% | +14,5% | 9,7% |
+
+Tiap ~4 pt penghematan biaya ~ +5-8%/tahun. Akun komisi murah + raw
+spread (tipe Zero) adalah rumah jangka panjang terbaik strategi ini —
+dengan syarat modal >= $3.000 agar lot minimum 0.01 sesuai rasio aman.
+
 ## Peringatan
 
 - Hasil backtest **data sintetis tidak bermakna** untuk profitabilitas
