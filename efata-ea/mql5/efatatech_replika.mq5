@@ -31,41 +31,41 @@
 #define REM99           99.0
 
 //=================== INPUT (default = preset P1) ====================
-input string InpMagics        = "10220,10330"; // daftar magic imZEX, pisah koma
-input double InpLot           = 0.0;    // lot awal per magic (0 = otomatis MM)
-input bool   InpAutoSeed      = true;   // true = pasangan siaga otomatis (spt backtest)
-input bool   InpUseRemote     = true;   // buat LS Kendali & LS Param
+input string InpMagics        = "10220,10330"; // Daftar magic number EA, pisahkan dengan koma
+input double InpLot           = 0.0;    // Lot awal tiap magic (0 = otomatis dihitung dari saldo x MM%)
+input bool   InpAutoSeed      = true;   // Aktif = pasang pending BUY/SELL siaga otomatis saat EA mulai
+input bool   InpUseRemote     = true;   // Aktifkan kontrol jarak jauh (LS Kendali & LS Param)
 
 input group "=== LS Param slot 1-29 (nilai awal) ==="
-input double InpExitPct       = 1.0;    // 1  tutup magic bila profit > X% balance
-input double InpExitUSD       = 0.0;    // 2  tutup semua bila profit > USD (0=off)
-input double InpXLot          = 3.0;    // 3  pengali lot lawan (1 = mode pasangan)
-input double InpLossMaxUSD    = 0.0;    // 4  tutup magic bila rugi > USD (0=off)
-input double InpLossMaxPersen = 15.0;   // 5  tutup magic bila rugi > X% balance
-input double InpMinMarginLev  = 500.0;  // 6  margin level < ini -> pending diparkir
-input double InpXLotLinier    = 0.0;    // 7  >0 = lot linier init*(level+1)*nilai
-input double InpUseRSI        = 0.0;    // 8  filter RSI L0 (0=off, 1-7=digit TF)
-input double InpExitRR        = 0.0;    // 9  X.Y tutup bila profit > RR x rugi terburuk
-input double InpExitBid       = 0.0;    // 10 Bid > nilai -> close all (0=off)
-input double InpExitBidMin    = 0.0;    // 11 Bid < nilai -> close all (0=off)
-input double InpLoopPerDay    = 0.0;    // 12 (v2 - belum dipakai)
-input double InpStartTrade    = 0.0;    // 13 jam mulai WIB
-input double InpEndTrade      = 24.0;   // 14 jam akhir WIB (24 = 24/7)
-input double InpWibOffset     = 7.0;    // 15 offset jam broker -> WIB
-input double InpTR            = 1.0;    // 16 1=geser lawan tiap detik, 0=isi 1x
-input double InpMM            = 0.3;    // 17 lot per 100k balance (bila lot=0)
-input double InpUseDivergent  = 0.0;    // 18 (v2 - belum dipakai)
-input double InpNextRound     = 0.0;    // 19 (v2 - belum dipakai)
-input double InpUseEMA        = 0.0;    // 20 >0 = period EMA filter target
-input double InpAddTemen      = 2.0;    // 21 maks order teman -T
-input double InpMaxLevel      = 0.0;    // 22 batas level (0=off)
-input double InpMaxLevCut     = 2.0;    // 23 level cut (0=off)
-input double InpAtrBuf        = 0.4;    // 24 [i=6] buffer ATR
-input double InpMinADX        = 20.0;   // 25 [i=6] gerbang ADX
-input double InpBooster1      = 0.0;    // 26 X.Y booster level
-input double InpBooster2      = 0.0;    // 27
-input double InpBooster3      = 0.0;    // 28
-input double InpLotTeman      = 0.0;    // 29 pengali lot -T (0 = samakan)
+input double InpExitPct       = 1.0;    // [1] Tutup semua posisi jika profit > sekian % dari saldo
+input double InpExitUSD       = 0.0;    // [2] Tutup semua posisi jika profit > sekian USD (0=nonaktif)
+input double InpXLot          = 3.0;    // [3] Pengali lot saat lawan/martingale (1 = mode pasangan seimbang)
+input double InpLossMaxUSD    = 0.0;    // [4] Tutup posisi jika rugi > sekian USD (0=nonaktif)
+input double InpLossMaxPersen = 15.0;   // [5] Tutup posisi jika rugi > sekian % dari saldo (batas darurat)
+input double InpMinMarginLev  = 500.0;  // [6] Jika margin level di bawah nilai ini, pending order dibekukan
+input double InpXLotLinier    = 0.0;    // [7] Mode lot linier: lot = awal x (level+1) x nilai ini (0=nonaktif)
+input double InpUseRSI        = 0.0;    // [8] Filter RSI (0=nonaktif, 1-7=kode timeframe)
+input double InpExitRR        = 0.0;    // [9] Tutup posisi jika profit > rasio X.Y dari rugi terburuk
+input double InpExitBid       = 0.0;    // [10] Tutup semua posisi jika harga Bid naik lewat nilai ini (0=nonaktif)
+input double InpExitBidMin    = 0.0;    // [11] Tutup semua posisi jika harga Bid turun lewat nilai ini (0=nonaktif)
+input double InpLoopPerDay    = 0.0;    // [12] Belum digunakan (fitur v2 mendatang)
+input double InpStartTrade    = 0.0;    // [13] Jam mulai trading (WIB)
+input double InpEndTrade      = 24.0;   // [14] Jam akhir trading (WIB, 24 = trading 24 jam)
+input double InpWibOffset     = 7.0;    // [15] Selisih jam server broker terhadap WIB
+input double InpTR            = 1.0;    // [16] 1 = geser target lawan tiap detik, 0 = hanya sekali
+input double InpMM            = 0.3;    // [17] Lot per 100.000 saldo, dipakai jika Lot Awal = 0
+input double InpUseDivergent  = 0.0;    // [18] Belum digunakan (fitur v2 mendatang)
+input double InpNextRound     = 0.0;    // [19] Belum digunakan (fitur v2 mendatang)
+input double InpUseEMA        = 0.0;    // [20] Filter target pakai EMA, isi period EMA (0=nonaktif)
+input double InpAddTemen      = 2.0;    // [21] Jumlah maksimal order 'teman' tambahan per siklus
+input double InpMaxLevel      = 0.0;    // [22] Batas maksimal level ladder mode pasangan (0=nonaktif)
+input double InpMaxLevCut     = 2.0;    // [23] Level ladder martingale sebelum dipaksa cut/tutup semua
+input double InpAtrBuf        = 0.4;    // [24] Buffer ATR untuk teknik i=6
+input double InpMinADX        = 20.0;   // [25] Batas minimal ADX untuk teknik i=6
+input double InpBooster1      = 0.0;    // [26] Booster level 1 (format X.Y)
+input double InpBooster2      = 0.0;    // [27] Booster level 2 (format X.Y)
+input double InpBooster3      = 0.0;    // [28] Booster level 3 (format X.Y)
+input double InpLotTeman      = 0.0;    // [29] Pengali lot order teman (0 = samakan dengan lot awal)
 
 //=================== PARAMETER RUNTIME (live-edit) ==================
 double P[30];  // indeks 1..29 = slot LS Param
