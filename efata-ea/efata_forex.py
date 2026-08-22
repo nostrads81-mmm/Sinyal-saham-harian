@@ -27,8 +27,9 @@ PAIR_SPECS = {
     "USDJPY": dict(point=0.001,   digits=3, contract=100000.0, stops_level_points=10),
     "AUDUSD": dict(point=0.00001, digits=5, contract=100000.0, stops_level_points=10),
     # Crypto CFD: 1 lot = 1 coin, point=0.01 (harga 2 desimal)
-    "BTCUSD": dict(point=0.01, digits=2, contract=1.0, stops_level_points=100),
-    "ETHUSD": dict(point=0.01, digits=2, contract=1.0, stops_level_points=100),
+    # Leverage 1:2 sesuai batas riil broker utk crypto CFD (jauh lebih ketat dari forex/gold)
+    "BTCUSD": dict(point=0.01, digits=2, contract=1.0, stops_level_points=100, leverage=2.0),
+    "ETHUSD": dict(point=0.01, digits=2, contract=1.0, stops_level_points=100, leverage=2.0),
 }
 
 
