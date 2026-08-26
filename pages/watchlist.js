@@ -213,8 +213,8 @@ export default function WatchlistPage() {
     const key = rowKey(r);
     return (
       <div key={key} className="card">
-        <div className="card-row">
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="card-row" style={{ flexWrap: 'wrap', rowGap: 6 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
             <input
               type="checkbox"
               checked={selected.has(key)}
@@ -223,8 +223,8 @@ export default function WatchlistPage() {
             />
             <span className="ticker">{r.stock}</span>
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {existing && <span className={existing.cls}>{existing.label}</span>}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {existing && <span className={`${existing.cls} badge-sm`}>{existing.label}</span>}
             {badge && <span className={badge.cls}>{badge.label}</span>}
             <button
               className="btn"

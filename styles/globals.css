@@ -288,6 +288,13 @@ a { color: inherit; text-decoration: none; }
 .badge-danger { background: var(--danger-bg); color: var(--danger); }
 .badge-warning { background: var(--warning-bg); color: var(--warning); }
 
+/* Smaller, quieter badge for secondary info (e.g. "sudah di sinyal/rekapan"
+   on Watchlist) - shouldn't compete visually with the main status badge. */
+.badge-sm {
+  font-size: calc(10px * var(--text-scale));
+  padding: 2px 8px;
+}
+
 /* Score shown as a solid gold coin (number + label stacked) instead of a
    thin pill - bigger, bolder, and reads as a fixed mark of quality that
    doesn't change color with the theme's accent. */
