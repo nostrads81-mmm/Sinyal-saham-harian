@@ -47,6 +47,14 @@ class Params:
                                  # puncak equity tertinggi sepanjang berjalan;
                                  # puncak lalu di-reset ke equity saat itu (0=off)
 
+    # --- pengaman sideways (ekstensi baru, berlaku lintas teknik i mana pun) --
+    sidewaysAdxGate: float = 0.0  # >0 = aktifkan deteksi sideways (range 20 bar
+                                   # < 3*ATR DAN ADX < gate ini); 0=off
+    sidewaysExitPct: float = 0.0  # saat sideways terdeteksi, pakai target profit
+                                   # ini (%) menggantikan exitPct (0=exitPct tetap)
+    sidewaysPauseNew: float = 0.0 # 1=jangan pasang pasangan siaga baru saat
+                                   # sideways terdeteksi (0=tetap pasang normal)
+
     def __post_init__(self):
         self._defaults = {f.name: getattr(self, f.name) for f in fields(self)}
 

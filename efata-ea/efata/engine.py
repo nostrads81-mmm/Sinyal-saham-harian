@@ -332,7 +332,10 @@ class Engine:
         level = self._magic_level(cfg, buys, sells)
 
         # PINDAI/seed (padanan MQL_TESTER: pasangan siaga otomatis saat kosong)
-        if not pos and not bs_pend and not ss_pend and hours:
+        sideways_now = (p.sidewaysAdxGate > 0 and
+                        tech.is_sideways(self.ind[cfg.mid.tf_entry], p.sidewaysAdxGate))
+        seed_ok = hours and not (p.sidewaysPauseNew > 0 and sideways_now)
+        if not pos and not bs_pend and not ss_pend and seed_ok:
             self._seed_pair(magic, cfg.init_lot)
             pos, buys, sells, bs_pend, ss_pend = self._snapshot(magic)
 
@@ -583,7 +586,11 @@ class Engine:
             return
         st.worst_floating = min(st.worst_floating, fl)
 
-        if p.exitPct > 0 and fl > p.exitPct / 100.0 * b.balance:
+        exit_pct = p.exitPct
+        if p.sidewaysAdxGate > 0 and p.sidewaysExitPct > 0 and \
+                tech.is_sideways(self.ind[cfg.mid.tf_entry], p.sidewaysAdxGate):
+            exit_pct = p.sidewaysExitPct
+        if exit_pct > 0 and fl > exit_pct / 100.0 * b.balance:
             self._tutup_magic(magic)
             return
         if p.lossMaxUSD > 0 and fl < -p.lossMaxUSD:
