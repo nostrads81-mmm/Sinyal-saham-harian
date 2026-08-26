@@ -42,6 +42,11 @@ class Params:
     booster3: float = 0.0       # 28 booster level ke-3
     lotTeman: float = 0.0       # 29 pengali lot order -T (0=samakan open asli)
 
+    # --- ekstensi baru (bukan bagian 29 slot asli) --------------------------
+    globalMaxDD: float = 0.0    # tutup SEMUA magic bila equity turun > X% dari
+                                 # puncak equity tertinggi sepanjang berjalan;
+                                 # puncak lalu di-reset ke equity saat itu (0=off)
+
     def __post_init__(self):
         self._defaults = {f.name: getattr(self, f.name) for f in fields(self)}
 

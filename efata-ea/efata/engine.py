@@ -80,6 +80,8 @@ class Engine:
         self.ind: dict[str, IndicatorSet] = {}
         self.agg: dict[str, TFAggregator] = {}
         self._margin_parked: set[int] = set()
+        self._peak_equity: float = broker.equity
+        self.global_dd_events: int = 0   # jumlah kali globalMaxDD terpicu
         # pemetaan digit i -> fungsi target; bisa ditukar bila EA asli beda
         self.target_funcs = dict(tech.TARGET_FUNCS)
         if technique_map:
@@ -228,6 +230,21 @@ class Engine:
         """Satu siklus 'OnTick throttle 1 detik'."""
         b = self.broker
         p = self.params
+
+        # global drawdown guard (ekstensi baru, bukan bagian dokumen asli):
+        # equity turun > globalMaxDD% dari puncak tertinggi -> tutup SEMUA
+        # magic, lalu reset puncak ke equity saat itu (trailing reset).
+        eq_now = b.equity
+        if eq_now > self._peak_equity:
+            self._peak_equity = eq_now
+        if p.globalMaxDD > 0 and self._peak_equity > 0:
+            dd_pct = (self._peak_equity - eq_now) / self._peak_equity * 100.0
+            if dd_pct >= p.globalMaxDD:
+                for m in list(self.magics):
+                    self._tutup_magic(m)
+                self._peak_equity = b.equity
+                self.global_dd_events += 1
+                return
 
         # exit global (dokumen slot 2, 10, 11)
         fl_all = b.floating()
