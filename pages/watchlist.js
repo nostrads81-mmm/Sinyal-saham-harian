@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { getAccessToken, getStoredToken } from '../lib/auth';
 import {
   getValues, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
-  getOrCreateAppDataSheetId, ensureSheetsInitialized, addWaSignalRows,
+  getOrCreateAppDataSheetId, ensureSheetsInitialized, addWaSignalRows, getWaSignalRows, getJournaledStocks,
 } from '../lib/sheets';
 import {
   parseWatchlistRowsRaw, parseRange, parsePriceWithPercent, parseIndoNumber, parseSheetDate,
@@ -19,6 +19,11 @@ const STATUS_BADGE = {
 // row with no TP2/TP3) - treat that the same as a blank cell.
 const has = (v) => v && v !== '-';
 
+// Same key used for the React list key and for tracking checkbox selection -
+// stock alone isn't unique enough (a stock can reappear across refreshes
+// with a different date), so pair it with the row's own date.
+const rowKey = (r) => `${r.stock}-${r.date}`;
+
 export default function WatchlistPage() {
   const router = useRouter();
   const [token, setToken] = useState(null);
@@ -28,6 +33,11 @@ export default function WatchlistPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [recordingStock, setRecordingStock] = useState(null);
   const [recordError, setRecordError] = useState(null);
+  const [sheetId, setSheetId] = useState(null);
+  const [waStocks, setWaStocks] = useState(new Set());
+  const [journaledStocks, setJournaledStocks] = useState(new Set());
+  const [selected, setSelected] = useState(new Set());
+  const [batchRecording, setBatchRecording] = useState(false);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -50,9 +60,20 @@ export default function WatchlistPage() {
     setError(null);
     (async () => {
       try {
-        const rawRows = await getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token);
+        const resolvedSheetId = await getOrCreateAppDataSheetId(token);
+        if (cancelled) return;
+        setSheetId(resolvedSheetId);
+        await ensureSheetsInitialized(token, resolvedSheetId);
+        const [rawRows, waRows, journaled] = await Promise.all([
+          getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token),
+          getWaSignalRows(token, resolvedSheetId),
+          getJournaledStocks(token, resolvedSheetId),
+        ]);
         if (cancelled) return;
         setRows(parseWatchlistRowsRaw(rawRows));
+        setWaStocks(new Set(waRows.map((s) => s.stock.toUpperCase())));
+        setJournaledStocks(journaled);
+        setSelected(new Set());
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -79,36 +100,49 @@ export default function WatchlistPage() {
   const otherRows = rows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
 
   // Turns a watchlist row into a proper WA signal (same shape/sheet as a
-  // pasted WA screenshot) and jumps to Sinyal so the user lands right on
-  // the card - "catat" here means "bring this into Sinyal", not "log a
-  // completed trade" (that's still "Catat order ke jurnal" over there).
+  // pasted WA screenshot) - "catat" means "bring this into Sinyal", not
+  // "log a completed trade" (that's still "Catat order ke jurnal" over
+  // there). Throws with a user-facing message when the row's price data
+  // is too incomplete to build a signal from.
+  function buildSignalFromRow(r) {
+    const range = parseRange(r.buyPrice);
+    const sl = parsePriceWithPercent(r.sl).price;
+    const tp1 = parsePriceWithPercent(r.tp1).price;
+    const tp2 = has(r.tp2) ? parsePriceWithPercent(r.tp2).price : null;
+    const mmPercent = has(r.mmPercent) ? parseIndoNumber(r.mmPercent) : null;
+    if (range.low == null || range.high == null || sl == null || tp1 == null) {
+      throw new Error(`Data harga ${r.stock} tidak lengkap, tidak bisa dicatat sebagai sinyal.`);
+    }
+    return {
+      stock: r.stock,
+      tradeType: r.tradeType === 'SWING TRADE' ? 'SWING TRADE' : 'DAY TRADE',
+      buyLow: range.low,
+      buyHigh: range.high,
+      sl,
+      tp1,
+      tp2,
+      mmPercent,
+      // Pakai tanggal aslinya dari watchlist, bukan waktu klik "catat" -
+      // biar tanggal di Sinyal sama dengan yang tertulis di Watchlist.
+      capturedAt: (parseSheetDate(r.date) || new Date()).toISOString(),
+    };
+  }
+
+  async function resolveSheetId() {
+    if (sheetId) return sheetId;
+    const resolved = await getOrCreateAppDataSheetId(token);
+    setSheetId(resolved);
+    return resolved;
+  }
+
   async function catatRow(r) {
     setRecordingStock(r.stock);
     setRecordError(null);
     try {
-      const range = parseRange(r.buyPrice);
-      const sl = parsePriceWithPercent(r.sl).price;
-      const tp1 = parsePriceWithPercent(r.tp1).price;
-      const tp2 = has(r.tp2) ? parsePriceWithPercent(r.tp2).price : null;
-      const mmPercent = has(r.mmPercent) ? parseIndoNumber(r.mmPercent) : null;
-      if (range.low == null || range.high == null || sl == null || tp1 == null) {
-        throw new Error(`Data harga ${r.stock} tidak lengkap, tidak bisa dicatat sebagai sinyal.`);
-      }
-      const resolvedSheetId = await getOrCreateAppDataSheetId(token);
+      const signal = buildSignalFromRow(r);
+      const resolvedSheetId = await resolveSheetId();
       await ensureSheetsInitialized(token, resolvedSheetId);
-      await addWaSignalRows(token, resolvedSheetId, [{
-        stock: r.stock,
-        tradeType: r.tradeType === 'SWING TRADE' ? 'SWING TRADE' : 'DAY TRADE',
-        buyLow: range.low,
-        buyHigh: range.high,
-        sl,
-        tp1,
-        tp2,
-        mmPercent,
-        // Pakai tanggal aslinya dari watchlist, bukan waktu klik "catat" -
-        // biar tanggal di Sinyal sama dengan yang tertulis di Watchlist.
-        capturedAt: (parseSheetDate(r.date) || new Date()).toISOString(),
-      }]);
+      await addWaSignalRows(token, resolvedSheetId, [signal]);
       router.push('/');
     } catch (e) {
       setRecordError(e.message);
@@ -116,19 +150,87 @@ export default function WatchlistPage() {
     }
   }
 
+  // Batch version of catatRow: records every checked row in one
+  // read-modify-write (addWaSignalRows already batches), so picking 5
+  // stocks doesn't fire 5 separate sheet writes. Rows with incomplete price
+  // data are skipped and reported, but valid ones still get recorded rather
+  // than the whole batch failing over one bad row.
+  async function catatSelected() {
+    const chosen = rows.filter((r) => selected.has(rowKey(r)));
+    if (chosen.length === 0) return;
+    setBatchRecording(true);
+    setRecordError(null);
+    const signals = [];
+    const failedStocks = [];
+    for (const r of chosen) {
+      try {
+        signals.push(buildSignalFromRow(r));
+      } catch {
+        failedStocks.push(r.stock);
+      }
+    }
+    try {
+      if (signals.length > 0) {
+        const resolvedSheetId = await resolveSheetId();
+        await ensureSheetsInitialized(token, resolvedSheetId);
+        await addWaSignalRows(token, resolvedSheetId, signals);
+      }
+      if (failedStocks.length > 0) {
+        setRecordError(`Data tidak lengkap, dilewati: ${failedStocks.join(', ')}`);
+        setSelected(new Set(chosen.filter((r) => failedStocks.includes(r.stock)).map(rowKey)));
+        setBatchRecording(false);
+      } else {
+        router.push('/');
+      }
+    } catch (e) {
+      setRecordError(e.message);
+      setBatchRecording(false);
+    }
+  }
+
+  function toggleSelect(r) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const key = rowKey(r);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  // Tells the user this stock has already moved past "just watching" -
+  // either brought into Sinyal via "catat"/WA, or already bought and
+  // sitting in Rekapan - so they don't catat the same thing twice.
+  function existingElsewhereBadge(r) {
+    const stock = r.stock.toUpperCase();
+    if (journaledStocks.has(stock)) return { cls: 'badge badge-success', label: 'sudah di rekapan' };
+    if (waStocks.has(stock)) return { cls: 'badge', label: 'sudah di sinyal' };
+    return null;
+  }
+
   function renderRow(r) {
     const badge = STATUS_BADGE[r.status] || (r.status ? { cls: 'badge', label: r.status.toLowerCase() } : null);
+    const existing = existingElsewhereBadge(r);
+    const key = rowKey(r);
     return (
-      <div key={`${r.stock}-${r.date}`} className="card">
+      <div key={key} className="card">
         <div className="card-row">
-          <span className="ticker">{r.stock}</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={selected.has(key)}
+              onChange={() => toggleSelect(r)}
+              aria-label={`Pilih ${r.stock}`}
+            />
+            <span className="ticker">{r.stock}</span>
+          </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {existing && <span className={existing.cls}>{existing.label}</span>}
             {badge && <span className={badge.cls}>{badge.label}</span>}
             <button
               className="btn"
               style={{ padding: '4px 8px' }}
               onClick={() => catatRow(r)}
-              disabled={recordingStock === r.stock}
+              disabled={recordingStock === r.stock || batchRecording}
             >
               {recordingStock === r.stock ? 'Mencatat...' : 'catat'}
             </button>
@@ -163,6 +265,20 @@ export default function WatchlistPage() {
           Data mentah dari sheet sumber - cuma buat dilihat, tidak memengaruhi Sinyal.
         </p>
       </div>
+
+      {selected.size > 0 && (
+        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <span>{selected.size} saham dipilih</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" onClick={() => setSelected(new Set())} disabled={batchRecording}>
+              Batal
+            </button>
+            <button className="btn btn-primary" onClick={catatSelected} disabled={batchRecording}>
+              {batchRecording ? 'Mencatat...' : `Catat ${selected.size} saham`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading && <p className="muted">Memuat...</p>}
       {error && <p className="muted text-danger">{error}</p>}
