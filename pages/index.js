@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
   getValues, appendValues, ensureSheetsInitialized, getOrCreateAppDataSheetId, getSettings, updateSettings,
-  getInvestedCapital, getJournaledStocks, getActiveJournalCount, getWaSignalRows, addWaSignalRows, removeWaSignalRow,
+  getActiveJournalSummary, getWaSignalRows, addWaSignalRows, removeWaSignalRow,
   pruneStaleWaSignalRows, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import {
@@ -147,18 +147,19 @@ export default function SinyalPage() {
         if (cancelled) return;
         setSheetId(resolvedSheetId);
         await ensureSheetsInitialized(token, resolvedSheetId);
-        const [rawRows, settingsData, invested, journaled, occupiedSlots, waRaw] = await Promise.all([
+        const [rawRows, settingsData, journalSummary, waRaw] = await Promise.all([
           // Dibaca terus (lepas dari WATCHLIST_SHEET_ENABLED) karena sekarang
           // juga dipakai buat mencocokkan tanggal sinyal WA dengan tanggal
           // Watchlist-nya, bukan cuma sebagai sumber sinyal aktif.
           getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token).catch(() => []),
           getSettings(token, resolvedSheetId),
-          getInvestedCapital(token, resolvedSheetId),
-          getJournaledStocks(token, resolvedSheetId),
-          getActiveJournalCount(token, resolvedSheetId),
+          // Satu request buat count/journaledStocks/investedCapital sekaligus,
+          // bukan 3 request terpisah ke range jurnal yang sama persis.
+          getActiveJournalSummary(token, resolvedSheetId),
           getWaSignalRows(token, resolvedSheetId),
         ]);
         if (cancelled) return;
+        const { activeCount: occupiedSlots, journaledStocks: journaled, investedCapital: invested } = journalSummary;
         setSettings(settingsData);
         setInvestedCapital(invested);
         setJournaledStocks(journaled);
