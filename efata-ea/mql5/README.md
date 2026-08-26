@@ -18,6 +18,20 @@ lossMaxPersen 15, MM 0.3 (lot otomatis = balance × 0.3 / 100k).
 - **Belum ada (v2):** teknik i=3/8/9, LS Loop, nextRound, useDivergent,
   teman per-level untuk mode pasangan (v1: batas total per magic).
 
+## Pengaman sideways (ekstensi baru, default MATI)
+
+`InpSidewaysAdxGate` (0=nonaktif) + `InpSidewaysPauseNew` (default false):
+saat range 20 bar < 3×ATR **dan** ADX < gate (deteksi sama persis dengan
+teknik i=7), EA tidak memasang pasangan siaga baru — posisi yang sudah
+terbuka tetap dikelola normal (lawan/teman/exit jalan seperti biasa).
+
+Divalidasi di backtest Python (replika 1:1): return lebih baik di
+**ketiga** tahun uji (2015/16/17, gate=20) dibanding tanpa guard, DD
+tidak memburuk. Belum pernah diuji live — **default MATI**, aktifkan
+manual (set `InpSidewaysAdxGate=20`, `InpSidewaysPauseNew=true`) hanya
+setelah observasi preset P1 polos selesai, dan uji dulu di Strategy
+Tester sebelum demo.
+
 ## Cara pakai
 
 1. MetaTrader 5 → buka MetaEditor (F4) → File > Open Data Folder →

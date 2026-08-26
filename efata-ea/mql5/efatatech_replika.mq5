@@ -36,6 +36,10 @@ input double InpLot           = 0.0;    // Lot awal tiap magic (0 = otomatis dih
 input bool   InpAutoSeed      = true;   // Aktif = pasang pending BUY/SELL siaga otomatis saat EA mulai
 input bool   InpUseRemote     = true;   // Aktifkan kontrol jarak jauh (LS Kendali & LS Param)
 
+input group "=== Pengaman sideways (ekstensi baru, default MATI) ==="
+input double InpSidewaysAdxGate  = 0.0;     // >0 = aktifkan deteksi sideways (dipakai teknik i=7: range 20 bar < 3xATR & ADX < nilai ini). 0=nonaktif
+input bool   InpSidewaysPauseNew = false;   // Aktif = jangan pasang pasangan siaga baru saat sideways terdeteksi
+
 input group "=== LS Param slot 1-29 (nilai awal) ==="
 input double InpExitPct       = 1.0;    // [1] Tutup semua posisi jika profit > sekian % dari saldo
 input double InpExitUSD       = 0.0;    // [2] Tutup semua posisi jika profit > sekian USD (0=nonaktif)
@@ -823,8 +827,10 @@ void StepMagic(int idx)
    PendTickets(magic,ORDER_TYPE_SELL_STOP,0,anySS);
 
    // PINDAI/seed pasangan siaga saat magic kosong
+   bool sidewaysNow=(InpSidewaysAdxGate>0 && IsSideways(te,InpSidewaysAdxGate));
+   bool seedOK=(HoursOK() && !(InpSidewaysPauseNew && sidewaysNow));
    if(InpAutoSeed && nBuys+nSells==0 && ArraySize(anyBS)+ArraySize(anySS)==0
-      && HoursOK() && !g_marginLow)
+      && seedOK && !g_marginLow)
      {
       SeedPair(magic,g_initLot[idx]);
       PendTickets(magic,ORDER_TYPE_BUY_STOP,0,anyBS);
