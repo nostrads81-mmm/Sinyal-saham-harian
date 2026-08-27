@@ -95,9 +95,20 @@ export default function WatchlistPage() {
     );
   }
 
-  const dayTradeRows = rows.filter((r) => r.tradeType === 'DAY TRADE');
-  const swingTradeRows = rows.filter((r) => r.tradeType === 'SWING TRADE');
-  const otherRows = rows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
+  // Terbaru dulu di tiap kelompok - baris yang tanggalnya tidak kebaca
+  // (format aneh/kosong) ditaruh paling bawah alih-alih ikut acak ketutup
+  // urutan asli sheet.
+  const sortedRows = [...rows].sort((a, b) => {
+    const dateA = parseSheetDate(a.date);
+    const dateB = parseSheetDate(b.date);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateB - dateA;
+  });
+  const dayTradeRows = sortedRows.filter((r) => r.tradeType === 'DAY TRADE');
+  const swingTradeRows = sortedRows.filter((r) => r.tradeType === 'SWING TRADE');
+  const otherRows = sortedRows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
 
   // Turns a watchlist row into a proper WA signal (same shape/sheet as a
   // pasted WA screenshot) - "catat" means "bring this into Sinyal", not

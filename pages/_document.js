@@ -7,7 +7,10 @@ export default function Document() {
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#111318" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+        {/* iOS ignores SVG favicons and won't mask/round them itself for the
+            home-screen icon, so it needs its own flattened, safe-padded PNG. */}
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `try{document.documentElement.setAttribute('data-theme',localStorage.getItem('ssh_theme')==='light'?'light':'dark');}catch(e){}`,
