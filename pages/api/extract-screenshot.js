@@ -56,11 +56,19 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { image, mimeType } = req.body || {};
-  if (!image || !mimeType) {
-    res.status(400).json({ error: 'image dan mimeType wajib dikirim' });
+  const { image, mimeType, text } = req.body || {};
+  if ((!image || !mimeType) && !text) {
+    res.status(400).json({ error: 'image+mimeType atau text wajib dikirim' });
     return;
   }
+
+  // Sama-sama lewat Gemini (bukan cuma regex) karena format pesan WA suka
+  // beda-beda gaya admin (baris kebalik, typo "TP 1" dua kali, dll) - model
+  // yang sudah dipakai buat baca screenshot sama toleransinya kalau dikasih
+  // teks polos, jadi tinggal lewatkan sebagai bagian teks tanpa gambar.
+  const parts = text
+    ? [{ text: `${WA_SIGNAL_PROMPT}\n\nPesan yang di-paste:\n${text}` }]
+    : [{ text: WA_SIGNAL_PROMPT }, { inline_data: { mime_type: mimeType, data: image } }];
 
   // Gemini occasionally answers with a 503 "model overloaded, try again
   // later" during traffic spikes - that's on Google's end, not a real
@@ -82,12 +90,7 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: WA_SIGNAL_PROMPT },
-                { inline_data: { mime_type: mimeType, data: image } },
-              ],
-            }],
+            contents: [{ parts }],
             generationConfig: {
               responseMimeType: 'application/json',
               responseSchema: WA_SIGNAL_SCHEMA,
