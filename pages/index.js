@@ -254,18 +254,17 @@ export default function SinyalPage() {
     }
   }
 
-  async function processWaImage(file) {
+  async function extractWaSignals(body) {
     setWaExtracting(true);
     setWaExtractError(null);
     try {
-      const base64 = await fileToBase64(file);
       const res = await fetch('/api/extract-screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType: file.type, type: 'wa_signal' }),
+        body: JSON.stringify({ ...body, type: 'wa_signal' }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal membaca gambar');
+      if (!res.ok) throw new Error(data.error || 'Gagal membaca pesan WA');
       const validSignals = (data.signals || []).filter(
         (s) => s.tradeType === 'DAY TRADE' || s.tradeType === 'SWING TRADE'
       );
@@ -277,24 +276,50 @@ export default function SinyalPage() {
     }
   }
 
+  async function processWaImage(file) {
+    const base64 = await fileToBase64(file);
+    await extractWaSignals({ image: base64, mimeType: file.type });
+  }
+
+  async function processWaText(text) {
+    await extractWaSignals({ text });
+  }
+
+  // Paste zone accepts either a screenshot (image data) or the WA message
+  // copied as plain text - same extraction endpoint either way, Gemini
+  // handles both. Image takes priority if somehow both are on the clipboard.
   function handleWaPasteZone(e) {
     e.preventDefault();
     const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+    const text = e.clipboardData?.getData('text/plain')?.trim();
     if (waPasteZoneRef.current) waPasteZoneRef.current.innerHTML = '';
-    if (!item) return;
-    const file = item.getAsFile();
-    if (file) processWaImage(file);
+    if (item) {
+      const file = item.getAsFile();
+      if (file) processWaImage(file);
+    } else if (text) {
+      processWaText(text);
+    }
   }
 
-  // Ctrl+V anywhere on the Sinyal tab pastes a screenshot straight in,
-  // no need to save the file first. Only active when not already busy/reviewing.
+  // Ctrl+V anywhere on the Sinyal tab pastes a screenshot straight in, no
+  // need to save the file first or click into the paste zone. Text paste is
+  // only handled globally when nothing else is focused (so pasting into the
+  // entry-price/lot/settings inputs elsewhere on the page still behaves
+  // normally) - typing WA text needs the dedicated paste zone above instead.
   useEffect(() => {
     if (!token || waReview !== null) return;
     function onPaste(e) {
       const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
-      if (!item) return;
-      const file = item.getAsFile();
-      if (file) processWaImage(file);
+      if (item) {
+        const file = item.getAsFile();
+        if (file) processWaImage(file);
+        return;
+      }
+      const activeTag = document.activeElement?.tagName;
+      const activeEditable = document.activeElement?.isContentEditable;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeEditable) return;
+      const text = e.clipboardData?.getData('text/plain')?.trim();
+      if (text) processWaText(text);
     }
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
@@ -812,7 +837,7 @@ export default function SinyalPage() {
         onPaste={handleWaPasteZone}
         className="wa-paste-zone"
       >
-        {waExtracting ? 'Membaca screenshot WA...' : '+ Tempel screenshot WA di sini'}
+        {waExtracting ? 'Membaca pesan WA...' : '+ Tempel screenshot atau teks WA di sini'}
       </div>
       {waExtractError && <p className="muted text-danger">{waExtractError}</p>}
 
