@@ -837,7 +837,7 @@ export default function SinyalPage() {
         onPaste={handleWaPasteZone}
         className="wa-paste-zone"
       >
-        {waExtracting ? 'Membaca pesan WA...' : '+ Tempel screenshot atau teks WA di sini'}
+        {waExtracting ? 'Membaca sinyal baru...' : 'Tempel sinyal baru'}
       </div>
       {waExtractError && <p className="muted text-danger">{waExtractError}</p>}
 
