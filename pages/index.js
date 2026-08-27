@@ -7,6 +7,7 @@ import {
 } from '../lib/sheets';
 import {
   parseWatchlistRows, parseWatchlistRowsRaw, parseSheetDate, rankSignals, buildWaSignal, mergeSignalSources,
+  parseWaMessageText,
 } from '../lib/scoring';
 import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
@@ -282,6 +283,16 @@ export default function SinyalPage() {
   }
 
   async function processWaText(text) {
+    // Try the plain-JS parser first - if the pasted message matches the
+    // standard WA-announcement layout, this reads it instantly with no
+    // network round trip at all. Only fall back to the AI endpoint (a few
+    // seconds, and counts against the daily Gemini quota) when the text
+    // doesn't match that shape - free-form phrasing, reordered lines, etc.
+    const localSignals = parseWaMessageText(text);
+    if (localSignals.length > 0) {
+      setWaReview(localSignals.filter((s) => s.tradeType === 'DAY TRADE' || s.tradeType === 'SWING TRADE'));
+      return;
+    }
     await extractWaSignals({ text });
   }
 
