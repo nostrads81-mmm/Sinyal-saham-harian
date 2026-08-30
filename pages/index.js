@@ -13,6 +13,8 @@ import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
 import TradingViewButton from '../components/TradingViewButton';
+import AiRecoBadge from '../components/AiRecoBadge';
+import { useAiRecommend } from '../lib/useAiRecommend';
 
 // Temporary: the Google Sheet watchlist is paused as a signal source, so WA
 // screenshots are the only way signals get in right now. Flip back to true
@@ -122,6 +124,8 @@ export default function SinyalPage() {
   // Settings/DayTrade_Journal - resolved once per sign-in, then reused for
   // every sheet call below instead of a shared hardcoded ID.
   const [sheetId, setSheetId] = useState(null);
+
+  const aiRecommend = useAiRecommend(signals, token);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -528,6 +532,7 @@ export default function SinyalPage() {
         {s.estimatedEntry && (
           <p className="muted">Entry estimasi - cek harga live sebelum eksekusi</p>
         )}
+        <AiRecoBadge reco={aiRecommend.get(s)} pending={aiRecommend.isPending(s)} />
         <>
           {(() => {
             const rb = buildRangeBar(s.sl, s.entry, s.tp1, s.tp2);
