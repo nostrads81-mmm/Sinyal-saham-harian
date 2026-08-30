@@ -22,7 +22,7 @@ Sinyal:
 ${lines.join('\n')}
 
 Balas HANYA dengan JSON (tanpa markdown code fence) berbentuk:
-{"recommendations": [{"stock": "KODE", "action": "BUY atau WAIT atau SELL", "reason": "alasan singkat 1 kalimat dalam Bahasa Indonesia"}]}`;
+{"recommendations": [{"stock": "KODE", "action": "BUY atau WAIT atau SELL", "reason": "alasan singkat 1 kalimat dalam Bahasa Indonesia", "detail": "penjelasan lebih panjang (3-5 kalimat) kenapa rekomendasinya itu - sebut angka-angka relevan (entry, SL, TP, skor risk/reward, posisi harga terakhir terhadap range beli) dan apa yang perlu diperhatikan trader sebelum eksekusi"}]}`;
 }
 
 export default async function handler(req, res) {

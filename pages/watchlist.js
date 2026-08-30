@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { getAccessToken, getStoredToken } from '../lib/auth';
 import {
@@ -6,8 +6,10 @@ import {
   getOrCreateAppDataSheetId, ensureSheetsInitialized, addWaSignalRows, getWaSignalRows, getJournaledStocks,
 } from '../lib/sheets';
 import {
-  parseWatchlistRowsRaw, parseRange, parsePriceWithPercent, parseIndoNumber, parseSheetDate,
+  parseWatchlistRowsRaw, parseRange, parsePriceWithPercent, parseIndoNumber, parseSheetDate, buildWaSignal,
 } from '../lib/scoring';
+import AiRecoBadge from '../components/AiRecoBadge';
+import { useAiRecommend } from '../lib/useAiRecommend';
 
 const STATUS_BADGE = {
   RUNNING: { cls: 'badge badge-success', label: 'running' },
@@ -38,6 +40,27 @@ export default function WatchlistPage() {
   const [journaledStocks, setJournaledStocks] = useState(new Set());
   const [selected, setSelected] = useState(new Set());
   const [batchRecording, setBatchRecording] = useState(false);
+
+  // AI Buy/Wait/Sell only makes sense for rows still open to a fresh entry -
+  // a row already closed/TP-hit isn't something to recommend buying, so
+  // building/asking for those would just waste a call. Rows with too little
+  // price data to build a signal from (same completeness check as "catat")
+  // are quietly skipped rather than sent in half-formed.
+  const aiSignalByRowKey = useMemo(() => {
+    const map = new Map();
+    for (const r of rows) {
+      if ((r.status || '').toUpperCase() !== 'OPEN') continue;
+      try {
+        map.set(rowKey(r), buildWaSignal({ ...buildSignalFromRow(r), entryMode: 'mid', tpMode: 'mid' }));
+      } catch {
+        // Incomplete price data - same rows "catat" would also refuse.
+      }
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+  const aiSignals = useMemo(() => [...aiSignalByRowKey.values()], [aiSignalByRowKey]);
+  const aiRecommend = useAiRecommend(aiSignals, token);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -258,6 +281,12 @@ export default function WatchlistPage() {
         </p>
         {r.detailStatus && <p className="muted" style={{ marginTop: 2 }}>{r.detailStatus}</p>}
         {r.mmPercent && <p className="muted" style={{ marginTop: 2 }}>MM: {r.mmPercent}</p>}
+        {aiSignalByRowKey.has(key) && (
+          <AiRecoBadge
+            reco={aiRecommend.get(aiSignalByRowKey.get(key))}
+            pending={aiRecommend.isPending(aiSignalByRowKey.get(key))}
+          />
+        )}
         {existing && (
           <span className={`${existing.cls} badge-sm`} style={{ position: 'absolute', right: 15, bottom: 12 }}>
             {existing.label}

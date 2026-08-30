@@ -13,6 +13,8 @@ import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
 import TradingViewButton from '../components/TradingViewButton';
+import AiRecoBadge from '../components/AiRecoBadge';
+import { useAiRecommend } from '../lib/useAiRecommend';
 
 // Temporary: the Google Sheet watchlist is paused as a signal source, so WA
 // screenshots are the only way signals get in right now. Flip back to true
@@ -123,77 +125,7 @@ export default function SinyalPage() {
   // every sheet call below instead of a shared hardcoded ID.
   const [sheetId, setSheetId] = useState(null);
 
-  // AI (DeepSeek) Buy/Wait/Sell call per signal, keyed by a fingerprint of
-  // its own numbers - so a signal whose entry/SL/TP hasn't changed since
-  // last time reuses the cached verdict instead of re-asking the AI on
-  // every page load, and only a genuinely new/changed signal costs a call.
-  const [aiReco, setAiReco] = useState({});
-  const aiRecoPendingRef = useRef(new Set());
-  const [, forceAiRecoRerender] = useState(0);
-
-  function recoFingerprint(s) {
-    return `${s.stock}|${s.entry}|${s.sl}|${s.tp1}|${s.tp2 ?? ''}`;
-  }
-
-  useEffect(() => {
-    try {
-      setAiReco(JSON.parse(localStorage.getItem('ai_reco_cache') || '{}'));
-    } catch {
-      setAiReco({});
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!token || signals.length === 0) return;
-    const toFetch = signals.filter((s) => {
-      const fp = recoFingerprint(s);
-      return !aiReco[fp] && !aiRecoPendingRef.current.has(fp);
-    });
-    if (toFetch.length === 0) return;
-
-    const fps = toFetch.map(recoFingerprint);
-    fps.forEach((fp) => aiRecoPendingRef.current.add(fp));
-    forceAiRecoRerender((n) => n + 1);
-
-    (async () => {
-      try {
-        const res = await fetch('/api/ai-recommend', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            signals: toFetch.map((s) => ({
-              stock: s.stock, tradeType: s.tradeType, entry: s.entry, buyLow: s.buyLow, buyHigh: s.buyHigh,
-              sl: s.sl, tp1: s.tp1, tp2: s.tp2, score: s.score,
-            })),
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Gagal mendapat rekomendasi AI');
-        const byStock = new Map((data.recommendations || []).map((r) => [r.stock.toUpperCase(), r]));
-        setAiReco((prev) => {
-          const next = { ...prev };
-          for (const s of toFetch) {
-            const r = byStock.get(s.stock.toUpperCase());
-            if (r) next[recoFingerprint(s)] = { action: r.action, reason: r.reason };
-          }
-          try {
-            localStorage.setItem('ai_reco_cache', JSON.stringify(next));
-          } catch {
-            // Storage full/unavailable - the recommendation still renders
-            // this session, it just won't be cached for next time.
-          }
-          return next;
-        });
-      } catch {
-        // Silent: AI recommendation is a bonus hint, not core functionality -
-        // a failed call just means the badge doesn't show for these signals,
-        // it must not block the rest of the page.
-      } finally {
-        fps.forEach((fp) => aiRecoPendingRef.current.delete(fp));
-        forceAiRecoRerender((n) => n + 1);
-      }
-    })();
-  }, [signals, token, aiReco]);
+  const aiRecommend = useAiRecommend(signals, token);
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -600,27 +532,7 @@ export default function SinyalPage() {
         {s.estimatedEntry && (
           <p className="muted">Entry estimasi - cek harga live sebelum eksekusi</p>
         )}
-        {(() => {
-          const fp = recoFingerprint(s);
-          const reco = aiReco[fp];
-          const pending = aiRecoPendingRef.current.has(fp);
-          if (!reco && !pending) return null;
-          const actionCls = { BUY: 'badge-success', SELL: 'badge-danger', WAIT: 'badge-warning' }[reco?.action] || '';
-          const actionLabel = { BUY: 'Buy', WAIT: 'Wait', SELL: 'Sell' }[reco?.action] || '';
-          return (
-            <p className="muted" style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <strong>AI:</strong>
-              {pending
-                ? 'menganalisis...'
-                : (
-                  <>
-                    <span className={`badge ${actionCls}`}>{actionLabel}</span>
-                    <span>{reco.reason}</span>
-                  </>
-                )}
-            </p>
-          );
-        })()}
+        <AiRecoBadge reco={aiRecommend.get(s)} pending={aiRecommend.isPending(s)} />
         <>
           {(() => {
             const rb = buildRangeBar(s.sl, s.entry, s.tp1, s.tp2);
