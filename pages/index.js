@@ -11,6 +11,7 @@ import {
 } from '../lib/scoring';
 import SettingsSheet from '../components/SettingsSheet';
 import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
+import { getSkippedSignals, skipSignal, unskipSignal, pruneStaleSkips } from '../lib/skippedSignals';
 import TradingViewQuote from '../components/TradingViewQuote';
 import TradingViewButton from '../components/TradingViewButton';
 
@@ -198,8 +199,24 @@ export default function SinyalPage() {
         const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);
         if (staleWaStocks.length > 0) await pruneStaleWaSignalRows(token, resolvedSheetId, staleWaStocks);
 
+        pruneStaleSkips();
+        const skippedSet = new Set(getSkippedSignals());
+        // A manually-skipped stock is pulled out BEFORE ranking (not just
+        // filtered from the result) so it doesn't occupy a slot the system
+        // would otherwise give to it - the next-best candidate gets
+        // promoted into that freed slot instead. It's re-added afterwards
+        // as its own always-skipped entry so it stays visible (grayed out
+        // via the existing .skip-card look), just out of slot contention.
+        const rankable = combined.filter((s) => !skippedSet.has(s.stock.toUpperCase()));
+        const manuallySkipped = combined
+          .filter((s) => skippedSet.has(s.stock.toUpperCase()))
+          .map((s) => ({
+            ...s, rank: null, willSkip: true, skipReason: 'dilewati-manual',
+            position: { rupiah: 0, lembar: 0 }, owned: journaled.has(s.stock.toUpperCase()),
+          }));
+
         const remainingCapital = Math.max(settingsData.capital - invested, 0);
-        const ranked = rankSignals(combined, {
+        const ranked = rankSignals(rankable, {
           capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital,
           maxSlots: settingsData.maxSlots, occupiedSlots, journaledStocks: journaled,
         });
@@ -209,7 +226,9 @@ export default function SinyalPage() {
         // Already-bought (journaled) and dismissed signals don't belong in
         // this list anymore - the journal/Rekapan tab is where owned
         // positions live, and a dismissed signal was explicitly hidden.
-        setSignals(ranked.filter((s) => !s.owned && !dismissedSet.has(s.stock.toUpperCase())));
+        setSignals(
+          [...ranked, ...manuallySkipped].filter((s) => !s.owned && !dismissedSet.has(s.stock.toUpperCase()))
+        );
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -402,6 +421,19 @@ export default function SinyalPage() {
     });
   }
 
+  // Different from "hapus": skipping keeps the signal visible (grayed out)
+  // and just pulls it out of slot competition for this round, so the
+  // next-best candidate gets the freed slot - "hapus" removes it from view
+  // entirely instead.
+  function toggleSkipSignal(s) {
+    if (s.skipReason === 'dilewati-manual') {
+      unskipSignal(s.stock);
+    } else {
+      skipSignal(s.stock);
+    }
+    setRefreshKey((k) => k + 1);
+  }
+
   async function hapusSignal(s) {
     try {
       if (s.source === 'wa') {
@@ -496,6 +528,9 @@ export default function SinyalPage() {
             {s.willSkip && s.skipReason === 'modal-habis' && (
               <span className="badge badge-warning">skip · modal habis</span>
             )}
+            {s.skipReason === 'dilewati-manual' && (
+              <span className="badge">dilewati manual</span>
+            )}
             <span className="score-chip">
               <span className="score-num">{s.score.toFixed(1)}</span>
               <span className="score-lbl">skor</span>
@@ -504,6 +539,11 @@ export default function SinyalPage() {
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
               copy
             </button>
+            {s.isOpen && (
+              <button className="btn" style={{ padding: '4px 8px' }} onClick={() => toggleSkipSignal(s)}>
+                {s.skipReason === 'dilewati-manual' ? 'batalkan skip' : 'skip'}
+              </button>
+            )}
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => hapusSignal(s)}>
               hapus
             </button>
