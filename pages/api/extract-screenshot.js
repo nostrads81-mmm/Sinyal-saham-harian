@@ -26,21 +26,27 @@ const WA_SIGNAL_SCHEMA = {
   required: ['signals'],
 };
 
-const WA_SIGNAL_PROMPT = `Ini screenshot pengumuman sinyal saham dari grup WhatsApp komunitas trading. Formatnya biasanya seperti:
+const WA_SIGNAL_PROMPT = `Ini screenshot atau teks pengumuman sinyal saham dari grup WhatsApp komunitas trading. Ada dua gaya format yang biasa dipakai:
+
+Gaya 1 (terstruktur, bisa lebih dari satu sinyal dalam satu pesan):
 "DAY TRADE - BUY [KODE SAHAM] : [harga rendah]-[harga tinggi]"
 "SL IF CLOSE < [harga]" atau "SL : [harga]"
 "TP 1 : [harga]"
 "TP 2 : [harga]" (kadang tertulis "TP 1" dua kali karena typo admin - baris kedua tetap perlakukan sebagai TP2 jika angkanya lebih tinggi dari TP1)
 "MM : [persen] EQUITY"
 
-Bisa ada lebih dari satu sinyal saham dalam satu screenshot. Ekstrak semua yang kamu temukan jadi array "signals". Untuk tiap sinyal:
+Gaya 2 (kalimat naratif singkat, biasanya cuma satu sinyal per pesan), contoh:
+"INET offer bagus, retest demand di daily. maks buy 352. SL 340. TP 370."
+Di sini kode sahamnya di awal kalimat, tidak ada label "DAY TRADE"/"SWING TRADE" sama sekali (anggap "DAY TRADE" kalau tidak disebutkan), harga beli cuma satu angka (bukan range - pakai angka itu untuk buyLow dan buyHigh), dan "SL"/"TP" tanpa titik dua.
+
+Bisa ada lebih dari satu sinyal saham dalam satu screenshot/teks. Ekstrak semua yang kamu temukan jadi array "signals". Untuk tiap sinyal:
 - stock: kode saham
-- tradeType: "DAY TRADE" atau "SWING TRADE" sesuai yang tertulis
-- buyLow, buyHigh: dari range harga beli
+- tradeType: "DAY TRADE" atau "SWING TRADE" sesuai yang tertulis, default "DAY TRADE" kalau tidak disebutkan
+- buyLow, buyHigh: dari range harga beli (sama-sama diisi dengan angka yang sama kalau cuma ada satu harga beli, bukan range)
 - sl: harga stop loss (angka saja, abaikan kata "IF CLOSE <")
 - tp1, tp2: target profit (tp2 boleh dikosongkan kalau cuma ada satu TP)
-- mmPercent: angka MM dalam persen (misal "9% EQUITY" -> 9)
-- confidence: "low" kalau ada angka yang kurang yakin terbaca, selain itu "high"
+- mmPercent: angka MM dalam persen (misal "9% EQUITY" -> 9), kosongkan kalau tidak disebutkan
+- confidence: "low" kalau ada angka yang kurang yakin terbaca atau formatnya gaya 2 (naratif, kurang eksplisit), selain itu "high"
 
 Abaikan paragraf analisa teknikal panjang di bawahnya (alasan, kondisi chart, dll) - itu tidak perlu diekstrak, cukup data terstruktur di atas.`;
 
