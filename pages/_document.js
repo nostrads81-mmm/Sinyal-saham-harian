@@ -6,8 +6,8 @@ export default function Document() {
       <Head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#111318" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
         {/* iOS ignores SVG favicons and won't mask/round them itself for the
             home-screen icon, so it needs its own flattened, safe-padded PNG. */}
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
