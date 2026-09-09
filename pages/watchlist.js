@@ -27,7 +27,6 @@ const STATUS_BADGE = {
 const FILTERS = [
   { key: 'OPEN', label: 'Open', group: 'status' },
   { key: 'RUNNING', label: 'Running', group: 'status' },
-  { key: 'PENDING', label: 'Pending', group: 'status' },
   { key: 'REKAPAN', label: 'Sudah di rekapan', group: 'proses' },
   { key: 'SINYAL', label: 'Sudah di sinyal', group: 'proses' },
   { key: 'BELUM', label: 'Belum diproses', group: 'proses' },
