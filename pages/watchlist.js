@@ -15,8 +15,10 @@ const STATUS_BADGE = {
   PENDING: { cls: 'badge badge-warning', label: 'pending' },
 };
 
+// "Semua" isn't a real filter key - it's just what an empty selection means
+// (rendered as its own chip since "nothing selected" isn't obvious as a
+// clickable state on its own).
 const FILTERS = [
-  { key: 'ALL', label: 'Semua' },
   { key: 'OPEN', label: 'Open' },
   { key: 'RUNNING', label: 'Running' },
   { key: 'PENDING', label: 'Pending' },
@@ -25,9 +27,31 @@ const FILTERS = [
   { key: 'BELUM', label: 'Belum diproses' },
 ];
 
+// Single-filter predicate, reused for both the combined (OR) match below and
+// for testing one filter key in isolation.
+function matchesOneFilter(r, filterKey, existingElsewhereBadge) {
+  if (filterKey === 'OPEN' || filterKey === 'RUNNING' || filterKey === 'PENDING') return r.status === filterKey;
+  const badge = existingElsewhereBadge(r);
+  if (filterKey === 'REKAPAN') return badge?.label === 'sudah di rekapan';
+  if (filterKey === 'SINYAL') return badge?.label === 'sudah di sinyal';
+  if (filterKey === 'BELUM') return !badge;
+  return true;
+}
+
 // "-" is the source sheet's own empty-cell placeholder (e.g. a DAY TRADE
 // row with no TP2/TP3) - treat that the same as a blank cell.
 const has = (v) => v && v !== '-';
+
+// Same prompt style as the "copy" button in Sinyal, built from the
+// watchlist row's own already-formatted strings (buyPrice/sl/tp1 already
+// read like "1850 (-8.42%)") instead of recomputing entry/percent - this
+// page doesn't run the ranking math Sinyal does.
+function buildAiPromptFromRow(r) {
+  const range = has(r.buyPrice) ? `range beli ${r.buyPrice}, ` : '';
+  const sl = has(r.sl) ? `SL ${r.sl}` : '';
+  const tp1 = has(r.tp1) ? `, TP1 ${r.tp1}` : '';
+  return `Tolong analisa saham berikut, kasih tau trennya kemana, peluang naiknya, dan menurut kamu sebaiknya entry di harga berapa dari range yang tersedia:\n\n${r.stock}: ${range}${sl}${tp1}`;
+}
 
 // Same key used for the React list key and for tracking checkbox selection -
 // stock alone isn't unique enough (a stock can reappear across refreshes
@@ -48,7 +72,7 @@ export default function WatchlistPage() {
   const [journaledStocks, setJournaledStocks] = useState(new Set());
   const [selected, setSelected] = useState(new Set());
   const [batchRecording, setBatchRecording] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilters, setStatusFilters] = useState(new Set());
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -117,21 +141,22 @@ export default function WatchlistPage() {
     if (!dateB) return -1;
     return dateB - dateA;
   });
-  const filteredRows = sortedRows.filter((r) => matchesStatusFilter(r, statusFilter));
+  // Empty selection = "Semua" (no filtering). Otherwise a row passes if it
+  // matches ANY selected filter (OR) - e.g. "Open" + "Belum diproses"
+  // together shows open signals that are also untouched elsewhere.
+  const filteredRows = statusFilters.size === 0
+    ? sortedRows
+    : sortedRows.filter((r) => [...statusFilters].some((f) => matchesOneFilter(r, f, existingElsewhereBadge)));
   const dayTradeRows = filteredRows.filter((r) => r.tradeType === 'DAY TRADE');
   const swingTradeRows = filteredRows.filter((r) => r.tradeType === 'SWING TRADE');
   const otherRows = filteredRows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
 
-  // "REKAPAN"/"SINYAL" mirror what existingElsewhereBadge would show (so the
-  // filter matches what the user sees on each card); "BELUM" is neither.
-  function matchesStatusFilter(r, filter) {
-    if (filter === 'ALL') return true;
-    if (filter === 'OPEN' || filter === 'RUNNING' || filter === 'PENDING') return r.status === filter;
-    const badge = existingElsewhereBadge(r);
-    if (filter === 'REKAPAN') return badge?.label === 'sudah di rekapan';
-    if (filter === 'SINYAL') return badge?.label === 'sudah di sinyal';
-    if (filter === 'BELUM') return !badge;
-    return true;
+  function toggleFilter(key) {
+    setStatusFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
   }
 
   // Turns a watchlist row into a proper WA signal (same shape/sheet as a
@@ -223,6 +248,10 @@ export default function WatchlistPage() {
     }
   }
 
+  function copyRow(r) {
+    navigator.clipboard.writeText(buildAiPromptFromRow(r));
+  }
+
   function toggleSelect(r) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -260,6 +289,9 @@ export default function WatchlistPage() {
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {badge && <span className={badge.cls}>{badge.label}</span>}
+            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyRow(r)}>
+              copy
+            </button>
             <button
               className="btn"
               style={{ padding: '4px 8px' }}
@@ -307,12 +339,19 @@ export default function WatchlistPage() {
 
       {!loading && !error && rows.length > 0 && (
         <div className="filter-chips">
+          <button
+            type="button"
+            className={`filter-chip ${statusFilters.size === 0 ? 'active' : ''}`}
+            onClick={() => setStatusFilters(new Set())}
+          >
+            Semua
+          </button>
           {FILTERS.map((f) => (
             <button
               key={f.key}
               type="button"
-              className={`filter-chip ${statusFilter === f.key ? 'active' : ''}`}
-              onClick={() => setStatusFilter(f.key)}
+              className={`filter-chip ${statusFilters.has(f.key) ? 'active' : ''}`}
+              onClick={() => toggleFilter(f.key)}
             >
               {f.label}
             </button>
