@@ -42,6 +42,17 @@ function matchesOneFilter(r, filterKey, existingElsewhereBadge) {
 // row with no TP2/TP3) - treat that the same as a blank cell.
 const has = (v) => v && v !== '-';
 
+// Same prompt style as the "copy" button in Sinyal, built from the
+// watchlist row's own already-formatted strings (buyPrice/sl/tp1 already
+// read like "1850 (-8.42%)") instead of recomputing entry/percent - this
+// page doesn't run the ranking math Sinyal does.
+function buildAiPromptFromRow(r) {
+  const range = has(r.buyPrice) ? `range beli ${r.buyPrice}, ` : '';
+  const sl = has(r.sl) ? `SL ${r.sl}` : '';
+  const tp1 = has(r.tp1) ? `, TP1 ${r.tp1}` : '';
+  return `Tolong analisa saham berikut, kasih tau trennya kemana, peluang naiknya, dan menurut kamu sebaiknya entry di harga berapa dari range yang tersedia:\n\n${r.stock}: ${range}${sl}${tp1}`;
+}
+
 // Same key used for the React list key and for tracking checkbox selection -
 // stock alone isn't unique enough (a stock can reappear across refreshes
 // with a different date), so pair it with the row's own date.
@@ -237,6 +248,10 @@ export default function WatchlistPage() {
     }
   }
 
+  function copyRow(r) {
+    navigator.clipboard.writeText(buildAiPromptFromRow(r));
+  }
+
   function toggleSelect(r) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -274,6 +289,9 @@ export default function WatchlistPage() {
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {badge && <span className={badge.cls}>{badge.label}</span>}
+            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyRow(r)}>
+              copy
+            </button>
             <button
               className="btn"
               style={{ padding: '4px 8px' }}
