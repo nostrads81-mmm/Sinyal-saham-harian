@@ -15,6 +15,16 @@ const STATUS_BADGE = {
   PENDING: { cls: 'badge badge-warning', label: 'pending' },
 };
 
+const FILTERS = [
+  { key: 'ALL', label: 'Semua' },
+  { key: 'OPEN', label: 'Open' },
+  { key: 'RUNNING', label: 'Running' },
+  { key: 'PENDING', label: 'Pending' },
+  { key: 'REKAPAN', label: 'Sudah di rekapan' },
+  { key: 'SINYAL', label: 'Sudah di sinyal' },
+  { key: 'BELUM', label: 'Belum diproses' },
+];
+
 // "-" is the source sheet's own empty-cell placeholder (e.g. a DAY TRADE
 // row with no TP2/TP3) - treat that the same as a blank cell.
 const has = (v) => v && v !== '-';
@@ -38,6 +48,7 @@ export default function WatchlistPage() {
   const [journaledStocks, setJournaledStocks] = useState(new Set());
   const [selected, setSelected] = useState(new Set());
   const [batchRecording, setBatchRecording] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   useEffect(() => {
     setToken(getStoredToken());
@@ -106,9 +117,22 @@ export default function WatchlistPage() {
     if (!dateB) return -1;
     return dateB - dateA;
   });
-  const dayTradeRows = sortedRows.filter((r) => r.tradeType === 'DAY TRADE');
-  const swingTradeRows = sortedRows.filter((r) => r.tradeType === 'SWING TRADE');
-  const otherRows = sortedRows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
+  const filteredRows = sortedRows.filter((r) => matchesStatusFilter(r, statusFilter));
+  const dayTradeRows = filteredRows.filter((r) => r.tradeType === 'DAY TRADE');
+  const swingTradeRows = filteredRows.filter((r) => r.tradeType === 'SWING TRADE');
+  const otherRows = filteredRows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
+
+  // "REKAPAN"/"SINYAL" mirror what existingElsewhereBadge would show (so the
+  // filter matches what the user sees on each card); "BELUM" is neither.
+  function matchesStatusFilter(r, filter) {
+    if (filter === 'ALL') return true;
+    if (filter === 'OPEN' || filter === 'RUNNING' || filter === 'PENDING') return r.status === filter;
+    const badge = existingElsewhereBadge(r);
+    if (filter === 'REKAPAN') return badge?.label === 'sudah di rekapan';
+    if (filter === 'SINYAL') return badge?.label === 'sudah di sinyal';
+    if (filter === 'BELUM') return !badge;
+    return true;
+  }
 
   // Turns a watchlist row into a proper WA signal (same shape/sheet as a
   // pasted WA screenshot) - "catat" means "bring this into Sinyal", not
@@ -281,6 +305,21 @@ export default function WatchlistPage() {
         </p>
       </div>
 
+      {!loading && !error && rows.length > 0 && (
+        <div className="filter-chips">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              className={`filter-chip ${statusFilter === f.key ? 'active' : ''}`}
+              onClick={() => setStatusFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {selected.size > 0 && (
         <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <span>{selected.size} saham dipilih</span>
@@ -301,6 +340,9 @@ export default function WatchlistPage() {
 
       {!loading && !error && rows.length === 0 && (
         <p className="muted">Tidak ada data di watchlist.</p>
+      )}
+      {!loading && !error && rows.length > 0 && filteredRows.length === 0 && (
+        <p className="muted">Tidak ada saham yang cocok dengan filter ini.</p>
       )}
 
       {dayTradeRows.length > 0 && (
