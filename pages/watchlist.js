@@ -18,17 +18,23 @@ const STATUS_BADGE = {
 // "Semua" isn't a real filter key - it's just what an empty selection means
 // (rendered as its own chip since "nothing selected" isn't obvious as a
 // clickable state on its own).
+//
+// Each filter belongs to a "group" - status order vs. sudah-diproses-atau-
+// belum. Filters picked from the SAME group are OR'd together (a row can
+// only be OPEN or RUNNING at once, so picking both means "either"), but
+// filters from DIFFERENT groups are AND'd (picking "Open" + "Belum diproses"
+// means open AND untouched, not open-or-untouched).
 const FILTERS = [
-  { key: 'OPEN', label: 'Open' },
-  { key: 'RUNNING', label: 'Running' },
-  { key: 'PENDING', label: 'Pending' },
-  { key: 'REKAPAN', label: 'Sudah di rekapan' },
-  { key: 'SINYAL', label: 'Sudah di sinyal' },
-  { key: 'BELUM', label: 'Belum diproses' },
+  { key: 'OPEN', label: 'Open', group: 'status' },
+  { key: 'RUNNING', label: 'Running', group: 'status' },
+  { key: 'PENDING', label: 'Pending', group: 'status' },
+  { key: 'REKAPAN', label: 'Sudah di rekapan', group: 'proses' },
+  { key: 'SINYAL', label: 'Sudah di sinyal', group: 'proses' },
+  { key: 'BELUM', label: 'Belum diproses', group: 'proses' },
 ];
 
-// Single-filter predicate, reused for both the combined (OR) match below and
-// for testing one filter key in isolation.
+// Single-filter predicate, reused both when testing one filter key in
+// isolation and when OR-ing filters within the same group below.
 function matchesOneFilter(r, filterKey, existingElsewhereBadge) {
   if (filterKey === 'OPEN' || filterKey === 'RUNNING' || filterKey === 'PENDING') return r.status === filterKey;
   const badge = existingElsewhereBadge(r);
@@ -36,6 +42,23 @@ function matchesOneFilter(r, filterKey, existingElsewhereBadge) {
   if (filterKey === 'SINYAL') return badge?.label === 'sudah di sinyal';
   if (filterKey === 'BELUM') return !badge;
   return true;
+}
+
+// A row passes if, for every group that has at least one filter selected,
+// it matches at least one of that group's selected filters (OR within
+// group, AND across groups). A group with nothing selected imposes no
+// constraint.
+function matchesSelectedFilters(r, selectedKeys, existingElsewhereBadge) {
+  if (selectedKeys.size === 0) return true;
+  const selectedByGroup = new Map();
+  for (const f of FILTERS) {
+    if (!selectedKeys.has(f.key)) continue;
+    if (!selectedByGroup.has(f.group)) selectedByGroup.set(f.group, []);
+    selectedByGroup.get(f.group).push(f.key);
+  }
+  return [...selectedByGroup.values()].every(
+    (keys) => keys.some((k) => matchesOneFilter(r, k, existingElsewhereBadge))
+  );
 }
 
 // "-" is the source sheet's own empty-cell placeholder (e.g. a DAY TRADE
@@ -141,12 +164,11 @@ export default function WatchlistPage() {
     if (!dateB) return -1;
     return dateB - dateA;
   });
-  // Empty selection = "Semua" (no filtering). Otherwise a row passes if it
-  // matches ANY selected filter (OR) - e.g. "Open" + "Belum diproses"
-  // together shows open signals that are also untouched elsewhere.
-  const filteredRows = statusFilters.size === 0
-    ? sortedRows
-    : sortedRows.filter((r) => [...statusFilters].some((f) => matchesOneFilter(r, f, existingElsewhereBadge)));
+  // Empty selection = "Semua" (no filtering). Otherwise see
+  // matchesSelectedFilters - OR within a group (status, or sudah-diproses),
+  // AND across groups: "Open" + "Belum diproses" together means open AND
+  // untouched, not open-or-untouched.
+  const filteredRows = sortedRows.filter((r) => matchesSelectedFilters(r, statusFilters, existingElsewhereBadge));
   const dayTradeRows = filteredRows.filter((r) => r.tradeType === 'DAY TRADE');
   const swingTradeRows = filteredRows.filter((r) => r.tradeType === 'SWING TRADE');
   const otherRows = filteredRows.filter((r) => r.tradeType !== 'DAY TRADE' && r.tradeType !== 'SWING TRADE');
