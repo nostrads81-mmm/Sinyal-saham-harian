@@ -35,7 +35,10 @@ const FILTERS = [
 // Single-filter predicate, reused both when testing one filter key in
 // isolation and when OR-ing filters within the same group below.
 function matchesOneFilter(r, filterKey, existingElsewhereBadge) {
-  if (filterKey === 'OPEN' || filterKey === 'RUNNING' || filterKey === 'PENDING') return r.status === filterKey;
+  // The sheet sometimes writes a variant like "OPEN(NEW)" instead of a bare
+  // "OPEN" - still counts as the Open category, not a status of its own.
+  if (filterKey === 'OPEN') return r.status.startsWith('OPEN');
+  if (filterKey === 'RUNNING') return r.status === filterKey;
   const badge = existingElsewhereBadge(r);
   if (filterKey === 'REKAPAN') return badge?.label === 'sudah di rekapan';
   if (filterKey === 'SINYAL') return badge?.label === 'sudah di sinyal';
