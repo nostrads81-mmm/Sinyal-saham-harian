@@ -645,3 +645,28 @@ textarea:focus, input:focus {
 
 .sheet-actions { display: flex; gap: 8px; margin-top: 20px; }
 .sheet-actions .btn { flex: 1; }
+
+/* Horizontally-scrollable filter row (Watchlist) - more options than a
+   .segmented toggle comfortably fits, so chips scroll instead of squeezing. */
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.filter-chip {
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: calc(12.5px * var(--text-scale));
+  font-weight: calc(600 + var(--fw-boost));
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.filter-chip.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
