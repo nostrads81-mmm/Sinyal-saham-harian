@@ -71,11 +71,17 @@ const has = (v) => v && v !== '-';
 // watchlist row's own already-formatted strings (buyPrice/sl/tp1 already
 // read like "1850 (-8.42%)") instead of recomputing entry/percent - this
 // page doesn't run the ranking math Sinyal does.
-function buildAiPromptFromRow(r) {
+function formatRowLine(r) {
   const range = has(r.buyPrice) ? `range beli ${r.buyPrice}, ` : '';
   const sl = has(r.sl) ? `SL ${r.sl}` : '';
   const tp1 = has(r.tp1) ? `, TP1 ${r.tp1}` : '';
-  return `Tolong analisa saham berikut, kasih tau trennya kemana, peluang naiknya, dan menurut kamu sebaiknya entry di harga berapa dari range yang tersedia:\n\n${r.stock}: ${range}${sl}${tp1}`;
+  return `${r.stock}: ${range}${sl}${tp1}`;
+}
+
+function buildAiPromptFromRows(rows) {
+  const noun = rows.length > 1 ? 'saham-saham' : 'saham';
+  const lines = rows.map(formatRowLine).join('\n');
+  return `Tolong analisa ${noun} berikut, kasih tau trennya kemana, peluang naiknya, dan menurut kamu sebaiknya entry di harga berapa dari range yang tersedia:\n\n${lines}`;
 }
 
 // Same key used for the React list key and for tracking checkbox selection -
@@ -273,7 +279,13 @@ export default function WatchlistPage() {
   }
 
   function copyRow(r) {
-    navigator.clipboard.writeText(buildAiPromptFromRow(r));
+    navigator.clipboard.writeText(buildAiPromptFromRows([r]));
+  }
+
+  function copySelected() {
+    const chosen = rows.filter((r) => selected.has(rowKey(r)));
+    if (chosen.length === 0) return;
+    navigator.clipboard.writeText(buildAiPromptFromRows(chosen));
   }
 
   function toggleSelect(r) {
@@ -389,6 +401,9 @@ export default function WatchlistPage() {
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn" onClick={() => setSelected(new Set())} disabled={batchRecording}>
               Batal
+            </button>
+            <button className="btn" onClick={copySelected} disabled={batchRecording}>
+              copy
             </button>
             <button className="btn btn-primary" onClick={catatSelected} disabled={batchRecording}>
               {batchRecording ? 'Mencatat...' : `Catat ${selected.size} saham`}
