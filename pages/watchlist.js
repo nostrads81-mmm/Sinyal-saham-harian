@@ -91,9 +91,17 @@ const rowKey = (r) => `${r.stock}-${r.date}`;
 
 export default function WatchlistPage() {
   const router = useRouter();
-  const [token, setToken] = useState(null);
+  // Two independent Google sign-ins can be active at once: `sourceToken`
+  // reads the shared Watchlist source sheet (may be a different account,
+  // e.g. one that's actually shared the sheet), while `mainToken` is the
+  // same account Sinyal/Rekapan use, needed for "catat" and for the
+  // "sudah di sinyal/rekapan" badges. Either can be signed in without the
+  // other - only the list itself requires sourceToken.
+  const [sourceToken, setSourceToken] = useState(null);
+  const [mainToken, setMainToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [mainError, setMainError] = useState(null);
   const [rows, setRows] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [recordingStock, setRecordingStock] = useState(null);
@@ -106,39 +114,45 @@ export default function WatchlistPage() {
   const [statusFilters, setStatusFilters] = useState(new Set());
 
   useEffect(() => {
-    setToken(getStoredToken());
+    setSourceToken(getStoredToken('watchlist'));
+    setMainToken(getStoredToken('main'));
   }, []);
 
-  async function handleSignIn() {
+  async function handleSignInSource() {
     setError(null);
     try {
-      const t = await getAccessToken();
-      setToken(t);
+      const t = await getAccessToken('watchlist');
+      setSourceToken(t);
     } catch (e) {
       setError(e.message);
     }
   }
 
+  async function handleSignInMain() {
+    setMainError(null);
+    try {
+      const t = await getAccessToken('main');
+      setMainToken(t);
+      return t;
+    } catch (e) {
+      setMainError(e.message);
+      return null;
+    }
+  }
+
+  // Fetch the shared Watchlist source sheet - this is the only fetch that
+  // gates the page, since it's the one thing every viewer needs regardless
+  // of whether they've also signed into their own account.
   useEffect(() => {
-    if (!token) return;
+    if (!sourceToken) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
     (async () => {
       try {
-        const resolvedSheetId = await getOrCreateAppDataSheetId(token);
-        if (cancelled) return;
-        setSheetId(resolvedSheetId);
-        await ensureSheetsInitialized(token, resolvedSheetId);
-        const [rawRows, waRows, journaled] = await Promise.all([
-          getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, token),
-          getWaSignalRows(token, resolvedSheetId),
-          getJournaledStocks(token, resolvedSheetId),
-        ]);
+        const rawRows = await getValues(WATCHLIST_SHEET_ID, WATCHLIST_RANGE, sourceToken, 'watchlist');
         if (cancelled) return;
         setRows(parseWatchlistRowsRaw(rawRows));
-        setWaStocks(new Set(waRows.map((s) => s.stock.toUpperCase())));
-        setJournaledStocks(journaled);
         setSelected(new Set());
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -147,15 +161,42 @@ export default function WatchlistPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [token, refreshKey]);
+  }, [sourceToken, refreshKey]);
 
-  if (!token) {
+  // Fetch the viewer's own Sinyal/Rekapan data for the "sudah di sinyal/
+  // rekapan" badges - optional and independent of the source fetch above,
+  // so it quietly does nothing until the user signs into their own account.
+  useEffect(() => {
+    if (!mainToken) return;
+    let cancelled = false;
+    setMainError(null);
+    (async () => {
+      try {
+        const resolvedSheetId = await getOrCreateAppDataSheetId(mainToken);
+        if (cancelled) return;
+        setSheetId(resolvedSheetId);
+        await ensureSheetsInitialized(mainToken, resolvedSheetId);
+        const [waRows, journaled] = await Promise.all([
+          getWaSignalRows(mainToken, resolvedSheetId),
+          getJournaledStocks(mainToken, resolvedSheetId),
+        ]);
+        if (cancelled) return;
+        setWaStocks(new Set(waRows.map((s) => s.stock.toUpperCase())));
+        setJournaledStocks(journaled);
+      } catch (e) {
+        if (!cancelled) setMainError(e.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mainToken, refreshKey]);
+
+  if (!sourceToken) {
     return (
       <div className="center-box">
         <div className="login-icon">📈</div>
         <h1 className="login-title">Watchlist</h1>
-        <p className="login-sub">Masuk dengan akun Google untuk melihat data watchlist.</p>
-        <button className="btn btn-primary login-btn" onClick={handleSignIn}>Sign in dengan Google</button>
+        <p className="login-sub">Masuk dengan akun Google yang punya akses ke sheet sumber Watchlist.</p>
+        <button className="btn btn-primary login-btn" onClick={handleSignInSource}>Sign in dengan Google</button>
         {error && <p className="muted text-danger" style={{ marginTop: 12 }}>{error}</p>}
       </div>
     );
@@ -218,9 +259,19 @@ export default function WatchlistPage() {
     };
   }
 
-  async function resolveSheetId() {
+  // "catat" writes into the viewer's own Sinyal sheet, which needs the
+  // 'main' login slot - prompt for it here (once) if it isn't signed in yet,
+  // rather than forcing that sign-in just to browse the shared Watchlist.
+  async function ensureMainToken() {
+    if (mainToken) return mainToken;
+    const t = await handleSignInMain();
+    if (!t) throw new Error('Perlu masuk dengan akun Anda sendiri untuk mencatat ke Sinyal.');
+    return t;
+  }
+
+  async function resolveSheetId(activeToken) {
     if (sheetId) return sheetId;
-    const resolved = await getOrCreateAppDataSheetId(token);
+    const resolved = await getOrCreateAppDataSheetId(activeToken);
     setSheetId(resolved);
     return resolved;
   }
@@ -229,10 +280,11 @@ export default function WatchlistPage() {
     setRecordingStock(r.stock);
     setRecordError(null);
     try {
+      const activeToken = await ensureMainToken();
       const signal = buildSignalFromRow(r);
-      const resolvedSheetId = await resolveSheetId();
-      await ensureSheetsInitialized(token, resolvedSheetId);
-      await addWaSignalRows(token, resolvedSheetId, [signal]);
+      const resolvedSheetId = await resolveSheetId(activeToken);
+      await ensureSheetsInitialized(activeToken, resolvedSheetId);
+      await addWaSignalRows(activeToken, resolvedSheetId, [signal]);
       router.push('/');
     } catch (e) {
       setRecordError(e.message);
@@ -250,20 +302,21 @@ export default function WatchlistPage() {
     if (chosen.length === 0) return;
     setBatchRecording(true);
     setRecordError(null);
-    const signals = [];
-    const failedStocks = [];
-    for (const r of chosen) {
-      try {
-        signals.push(buildSignalFromRow(r));
-      } catch {
-        failedStocks.push(r.stock);
-      }
-    }
     try {
+      const activeToken = await ensureMainToken();
+      const signals = [];
+      const failedStocks = [];
+      for (const r of chosen) {
+        try {
+          signals.push(buildSignalFromRow(r));
+        } catch {
+          failedStocks.push(r.stock);
+        }
+      }
       if (signals.length > 0) {
-        const resolvedSheetId = await resolveSheetId();
-        await ensureSheetsInitialized(token, resolvedSheetId);
-        await addWaSignalRows(token, resolvedSheetId, signals);
+        const resolvedSheetId = await resolveSheetId(activeToken);
+        await ensureSheetsInitialized(activeToken, resolvedSheetId);
+        await addWaSignalRows(activeToken, resolvedSheetId, signals);
       }
       if (failedStocks.length > 0) {
         setRecordError(`Data tidak lengkap, dilewati: ${failedStocks.join(', ')}`);
@@ -372,6 +425,16 @@ export default function WatchlistPage() {
           Data mentah dari sheet sumber - cuma buat dilihat, tidak memengaruhi Sinyal.
         </p>
       </div>
+
+      {!mainToken && (
+        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <p className="muted" style={{ margin: 0 }}>
+            Masuk dengan akun Anda sendiri untuk fitur catat &amp; badge "sudah di sinyal/rekapan".
+          </p>
+          <button className="btn btn-primary" onClick={handleSignInMain}>Sign in akun Anda</button>
+        </div>
+      )}
+      {mainError && <p className="muted text-danger">{mainError}</p>}
 
       {!loading && !error && rows.length > 0 && (
         <div className="filter-chips">
