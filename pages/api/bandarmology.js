@@ -1,7 +1,11 @@
 import { analyzeBandarmology } from '../../lib/bandarmology';
 
-// Server-side only: Yahoo Finance's chart endpoint doesn't allow CORS from
-// a browser, so this proxies it. No API key needed - it's public data.
+// Server-side only: INDEXALPHA_API_KEY never reaches the browser bundle.
+// Index Alpha (https://indexalpha.id) republishes IDX broker-summary and
+// foreign-flow data - the actual "who's buying/selling" numbers real
+// bandarmologi needs, which IDX itself doesn't publish for free.
+
+const BASE = 'https://api.indexalpha.id';
 
 // Approximate LQ45/IDX30 overlap (large, liquid IDX names) as a static list -
 // there's no free API for "give me the current LQ45 constituents", and the
@@ -16,34 +20,38 @@ const TICKERS = [
   'UNVR', 'MTEL',
 ];
 
-const YAHOO_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-};
+// A few trading days of aggregate flow, not just today - single-day broker
+// summary can be noisy (one big block trade skews it), so this smooths over
+// the last week instead.
+const RANGE_DAYS = 5;
 
-async function fetchDailySeries(ticker) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}.JK?interval=1d&range=3mo`;
-  const res = await fetch(url, { headers: YAHOO_HEADERS });
-  if (!res.ok) throw new Error(`Yahoo Finance error ${res.status} untuk ${ticker}`);
-  const data = await res.json();
-  const result = data?.chart?.result?.[0];
-  const quote = result?.indicators?.quote?.[0];
-  if (!quote) throw new Error(`Data kosong untuk ${ticker}`);
+function dateRange() {
+  const to = new Date();
+  const from = new Date(to);
+  from.setDate(from.getDate() - RANGE_DAYS);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  return { from: iso(from), to: iso(to) };
+}
 
-  // Yahoo pads non-trading gaps with null entries in each array - drop any
-  // day missing a value in any field rather than let a null poison the
-  // running OBV/AD totals downstream.
-  const closes = [];
-  const highs = [];
-  const lows = [];
-  const volumes = [];
-  for (let i = 0; i < quote.close.length; i++) {
-    if (quote.close[i] == null || quote.high[i] == null || quote.low[i] == null || quote.volume[i] == null) continue;
-    closes.push(quote.close[i]);
-    highs.push(quote.high[i]);
-    lows.push(quote.low[i]);
-    volumes.push(quote.volume[i]);
+async function indexAlphaFetch(path, apiKey) {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { Accept: 'application/json', Authorization: `Bearer ${apiKey}` },
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.success) {
+    throw new Error(body?.error || `Index Alpha error ${res.status}`);
   }
-  return { closes, highs, lows, volumes };
+  return body.data;
+}
+
+async function fetchTickerFlow(ticker, apiKey, from, to) {
+  const [brokerRows, foreignFlow] = await Promise.all([
+    indexAlphaFetch(`/stocks/broker-summary?ticker=${ticker}&from=${from}&to=${to}&investor=all`, apiKey),
+    indexAlphaFetch(`/foreign-flow?ticker=${ticker}&from=${from}&to=${to}`, apiKey),
+  ]);
+  const analysis = analyzeBandarmology(brokerRows, foreignFlow);
+  if (!analysis) throw new Error(`Data broker summary ${ticker} kosong`);
+  return { ticker, ...analysis };
 }
 
 export default async function handler(req, res) {
@@ -52,13 +60,15 @@ export default async function handler(req, res) {
     return;
   }
 
+  const apiKey = process.env.INDEXALPHA_API_KEY;
+  if (!apiKey) {
+    res.status(500).json({ error: 'INDEXALPHA_API_KEY belum diset di server' });
+    return;
+  }
+
+  const { from, to } = dateRange();
   const outcomes = await Promise.allSettled(
-    TICKERS.map(async (ticker) => {
-      const series = await fetchDailySeries(ticker);
-      const analysis = analyzeBandarmology(series);
-      if (!analysis) throw new Error(`Riwayat harga ${ticker} belum cukup panjang`);
-      return { ticker, ...analysis };
-    })
+    TICKERS.map((ticker) => fetchTickerFlow(ticker, apiKey, from, to))
   );
 
   const results = outcomes
@@ -70,5 +80,5 @@ export default async function handler(req, res) {
     .filter((o) => o.status === 'rejected')
     .map((o) => o.reason?.message || 'error tidak diketahui');
 
-  res.status(200).json({ generatedAt: new Date().toISOString(), results, failed });
+  res.status(200).json({ generatedAt: new Date().toISOString(), range: { from, to }, results, failed });
 }

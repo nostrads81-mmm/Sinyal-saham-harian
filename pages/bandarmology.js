@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-// Public price/volume data only - no Google Sheets, no sign-in needed, so
+// Real broker-summary/foreign-flow data (Index Alpha), public and paid for
+// server-side via INDEXALPHA_API_KEY - no Google sign-in needed here, so
 // this page loads straight into the fetch instead of gating on a token
 // like Sinyal/Rekapan/Watchlist do.
 
@@ -13,7 +14,11 @@ const VERDICT_BADGE = {
 };
 
 function formatRupiah(n) {
-  return new Intl.NumberFormat('id-ID').format(Math.round(n));
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(1)}M`;
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(1)}jt`;
+  return `${sign}${new Intl.NumberFormat('id-ID').format(Math.round(abs))}`;
 }
 
 export default function BandarmologyPage() {
@@ -22,6 +27,7 @@ export default function BandarmologyPage() {
   const [results, setResults] = useState([]);
   const [failed, setFailed] = useState([]);
   const [generatedAt, setGeneratedAt] = useState(null);
+  const [range, setRange] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -31,12 +37,13 @@ export default function BandarmologyPage() {
     (async () => {
       try {
         const res = await fetch('/api/bandarmology');
-        if (!res.ok) throw new Error(`Gagal memuat data (${res.status})`);
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Gagal memuat data (${res.status})`);
         if (cancelled) return;
         setResults(data.results || []);
         setFailed(data.failed || []);
         setGeneratedAt(data.generatedAt);
+        setRange(data.range);
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -56,8 +63,8 @@ export default function BandarmologyPage() {
           </button>
         </div>
         <p className="page-sub">
-          Bukan bandarmologi asli (data broker tidak tersedia gratis) - ini proxy dari lonjakan volume + tren OBV/Akumulasi-Distribusi
-          berbasis data harga publik saham LQ45/IDX30. Bukan rekomendasi atau ajakan membeli.
+          Skor bandarmologi saham LQ45/IDX30 dari data broker summary &amp; foreign flow asli (Index Alpha), digabung
+          jadi satu skor akumulasi/distribusi. Bukan rekomendasi atau ajakan membeli.
         </p>
       </div>
 
@@ -75,29 +82,28 @@ export default function BandarmologyPage() {
             <span className={VERDICT_BADGE[r.verdict] || 'badge'}>{r.verdict}</span>
           </div>
           <p className="muted" style={{ marginTop: 4 }}>
-            Close {formatRupiah(r.lastClose)}{' '}
-            <span className={r.changePercent >= 0 ? 'text-success' : 'text-danger'}>
-              ({r.changePercent >= 0 ? '+' : ''}{r.changePercent.toFixed(2)}%)
+            Net foreign{' '}
+            <span className={r.netForeign >= 0 ? 'text-success' : 'text-danger'}>
+              {r.netForeign >= 0 ? '+' : ''}{formatRupiah(r.netForeign)}
             </span>
           </p>
           <p className="muted" style={{ marginTop: 2 }}>
-            Volume {r.volumeRatio.toFixed(2)}x rata-rata 20 hari
-          </p>
-          <p className="muted" style={{ marginTop: 2 }}>
-            Tren OBV {r.obvTrend >= 0 ? '+' : ''}{r.obvTrend.toFixed(2)} · Tren Akumulasi/Distribusi {r.adTrend >= 0 ? '+' : ''}{r.adTrend.toFixed(2)}
+            Broker dominan: {r.concentration >= 0 ? 'net buy' : 'net sell'} {r.concentration >= 0 ? r.topBuyerCode : r.topSellerCode}
+            {' '}({r.concentration >= 0 ? '+' : ''}{(r.concentration * 100).toFixed(1)}% dari total nilai beli)
           </p>
         </div>
       ))}
 
       {!loading && failed.length > 0 && (
         <p className="muted" style={{ marginTop: 12 }}>
-          Gagal dimuat: {failed.length} saham (data Yahoo Finance mungkin lagi bermasalah untuk sebagian kode).
+          Gagal dimuat: {failed.length} saham (data Index Alpha mungkin lagi bermasalah untuk sebagian kode).
         </p>
       )}
 
       {generatedAt && (
         <p className="muted" style={{ marginTop: 12, fontSize: 11 }}>
           Diperbarui {new Date(generatedAt).toLocaleString('id-ID')}
+          {range && ` · Rentang ${range.from} s/d ${range.to}`}
         </p>
       )}
     </div>
