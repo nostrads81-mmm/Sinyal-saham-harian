@@ -377,6 +377,7 @@ export default function SinyalPage() {
         tp2: s.tp2 ? Number(s.tp2) : null,
         mmPercent: s.mmPercent ? Number(s.mmPercent) : null,
         capturedAt: new Date().toISOString(),
+        tag: s.tag || null,
       }));
       await addWaSignalRows(token, sheetId, signals);
       // A stock dismissed in an earlier, unrelated signal round shouldn't
@@ -486,6 +487,7 @@ export default function SinyalPage() {
         tp2: s.tp2,
         mmPercent: s.mmPercent,
         capturedAt: s.capturedAt,
+        tag: s.tag,
       }]);
       closeEditEntry();
       setRefreshKey((k) => k + 1);
