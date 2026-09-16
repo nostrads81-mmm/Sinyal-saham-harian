@@ -26,7 +26,7 @@ const WA_SIGNAL_SCHEMA = {
   required: ['signals'],
 };
 
-const WA_SIGNAL_PROMPT = `Ini screenshot atau teks pengumuman sinyal saham dari grup WhatsApp komunitas trading. Ada dua gaya format yang biasa dipakai:
+const WA_SIGNAL_PROMPT = `Ini screenshot atau teks pengumuman sinyal saham dari grup WhatsApp komunitas trading. Ada tiga gaya format yang biasa dipakai:
 
 Gaya 1 (terstruktur, bisa lebih dari satu sinyal dalam satu pesan):
 "DAY TRADE - BUY [KODE SAHAM] : [harga rendah]-[harga tinggi]"
@@ -38,6 +38,16 @@ Gaya 1 (terstruktur, bisa lebih dari satu sinyal dalam satu pesan):
 Gaya 2 (kalimat naratif singkat, biasanya cuma satu sinyal per pesan), contoh:
 "INET offer bagus, retest demand di daily. maks buy 352. SL 340. TP 370."
 Di sini kode sahamnya di awal kalimat, tidak ada label "DAY TRADE"/"SWING TRADE" sama sekali (anggap "DAY TRADE" kalau tidak disebutkan), harga beli cuma satu angka (bukan range - pakai angka itu untuk buyLow dan buyHigh), dan "SL"/"TP" tanpa titik dua.
+
+Gaya 3 (kode saham sendirian di baris pertama, field lain diberi label jelas dengan titik dua), contoh:
+"PTRO
+Entry : 4925-5075
+TP 1 : 5175
+TP 2 : 5375
+TP 3 : 5625
+SL : 4750
+High risk"
+Kode saham di baris paling atas sendirian, "Entry" dipakai sebagai ganti "BUY" untuk range harga beli, TP bisa sampai TP 3 (TP 3 boleh diabaikan, tidak perlu diekstrak), dan biasanya ada label risiko di baris terakhir ("High risk"/"Low risk"/dst - abaikan, tidak perlu diekstrak). Tidak ada label "DAY TRADE"/"SWING TRADE" (anggap "DAY TRADE").
 
 Bisa ada lebih dari satu sinyal saham dalam satu screenshot/teks. Ekstrak semua yang kamu temukan jadi array "signals". Untuk tiap sinyal:
 - stock: kode saham
