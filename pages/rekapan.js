@@ -362,7 +362,10 @@ export default function RekapanPage() {
         return (
           <div key={e.rowNumber} className="card">
             <div className="card-row">
-              <span className="ticker">{e.stock}</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="ticker">{e.stock}</span>
+                {e.tag && <span className="badge badge-sm">{e.tag}</span>}
+              </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <TradingViewButton onClick={() => toggleTv(e.rowNumber)} active={tvOpen.has(e.rowNumber)} />
                 <span className={badge.cls}>{badge.label}</span>
@@ -501,7 +504,10 @@ export default function RekapanPage() {
                 onClick={() => setExpandedRow(expanded ? null : e.rowNumber)}
               >
                 <div className="card-row">
-                  <span className="ticker">{e.stock}</span>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span className="ticker">{e.stock}</span>
+                    {e.tag && <span className="badge badge-sm">{e.tag}</span>}
+                  </div>
                   <span className={badge.cls}>
                     {net ? `${net.pnlPercent >= 0 ? '+' : ''}${net.pnlPercent.toFixed(2)}%` : badge.label}
                   </span>
