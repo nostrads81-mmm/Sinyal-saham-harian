@@ -261,9 +261,9 @@ export default function SinyalPage() {
         // Leading "'" forces Sheets to keep this as literal text instead of
         // silently converting "03-08-2026" into a date serial number (46237).
         `'${todayDDMMYYYY()}`, s.stock, Number(fillPrice) || s.entry, s.sl, s.tp1, s.tp2 || '',
-        orderFilled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${fillLot || '-'}`, s.tradeType || '',
+        orderFilled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${fillLot || '-'}`, s.tradeType || '', s.tag || '',
       ];
-      await appendValues(sheetId, 'DayTrade_Journal!A:K', [row], token);
+      await appendValues(sheetId, 'DayTrade_Journal!A:L', [row], token);
       setRecordingStock(null);
       setRefreshKey((k) => k + 1);
     } catch (e) {
@@ -523,7 +523,10 @@ export default function SinyalPage() {
     return (
       <div key={cardKey} className={`card ${s.willSkip ? 'skip-card' : ''} ${isSpotlight ? 'spotlight' : ''}`}>
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
-          <span className="ticker">{s.stock}</span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="ticker">{s.stock}</span>
+            {s.tag && <span className="badge badge-sm">{s.tag}</span>}
+          </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {s.willSkip && s.skipReason === 'modal-habis' && (
               <span className="badge badge-warning">skip · modal habis</span>
