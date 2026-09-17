@@ -5,7 +5,6 @@ const TABS = [
   { href: '/', label: 'Sinyal', icon: '🏠' },
   { href: '/rekapan', label: 'Rekapan', icon: '📋' },
   { href: '/watchlist', label: 'Watchlist', icon: '📊' },
-  { href: '/bandarmology', label: 'Bandarmology', icon: '🕵️' },
 ];
 
 export default function BottomNav() {
