@@ -886,14 +886,20 @@ export default function SinyalPage() {
         saving={settingsSaving}
       />
 
-      <div
-        ref={waPasteZoneRef}
-        contentEditable
-        suppressContentEditableWarning
-        onPaste={handleWaPasteZone}
-        className="wa-paste-zone"
-      >
-        {waExtracting ? 'Membaca sinyal baru...' : 'Tempel sinyal baru'}
+      <div className="wa-paste-zone-wrap">
+        <div
+          ref={waPasteZoneRef}
+          contentEditable
+          suppressContentEditableWarning
+          onPaste={handleWaPasteZone}
+          className="wa-paste-zone"
+        />
+        {/* Non-editable caption overlaid on the paste target - it's just a
+            hint ("paste here"), not text the user should be able to type
+            into or accidentally edit. */}
+        <span className="wa-paste-zone-label">
+          {waExtracting ? 'Membaca sinyal baru...' : 'Tempel sinyal baru'}
+        </span>
       </div>
       {waExtractError && <p className="muted text-danger">{waExtractError}</p>}
 

@@ -458,12 +458,15 @@ a { color: inherit; text-decoration: none; }
 }
 .login-btn { padding: 12px 28px; font-size: calc(14px * var(--text-scale)); }
 
+.wa-paste-zone-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
 .wa-paste-zone {
   background: var(--surface);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
   padding: 13px 14px;
-  margin-bottom: 12px;
   color: var(--text-faint);
   /* Never go below 16px on a focusable/editable element - iOS Safari
      auto-zooms the whole page on focus when the computed font-size is
@@ -472,17 +475,30 @@ a { color: inherit; text-decoration: none; }
      --text-scale (unlike other font-size rules) so it can't drop below
      that floor even when the user picks the "Kecil" text size. */
   font-size: 16px;
-  /* Reads like a plain field placeholder (not a bold call-to-action label) -
-     just a hint that this box accepts a paste, same weight/style as the
-     grayed-out placeholder text in a normal input. */
-  font-weight: 400;
-  font-style: italic;
   outline: none;
   min-height: 18px;
   text-align: center;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease;
 }
-.wa-paste-zone:focus { border-color: var(--accent); color: var(--text-muted); }
+.wa-paste-zone:focus { border-color: var(--accent); }
+.wa-paste-zone-label {
+  /* Plain hint text, not part of the editable surface - sits visually on
+     top of the empty paste zone but isn't inside it, so it can never be
+     typed into, selected, or edited. Same weight/style as a normal input
+     placeholder. */
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 14px;
+  font-size: 16px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--text-faint);
+  pointer-events: none;
+  user-select: none;
+}
 
 textarea, input {
   background: var(--surface-2);
