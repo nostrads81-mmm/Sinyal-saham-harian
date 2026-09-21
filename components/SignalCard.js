@@ -26,7 +26,6 @@ function buildRangeBar(sl, entry, tp1, tp2) {
 
 const SKIP_BADGES = {
   'modal-habis': 'skip · modal habis',
-  'batas-mm': 'skip · MM kecil',
   'dilewati-manual': 'dilewati manual',
 };
 
@@ -204,7 +203,6 @@ export default function SignalCard({
           <span className="pos-line-value">
             {formatRupiahRingkas(pos.rupiah)}
             <span className="muted"> · {Math.round(pos.lembar / 100)} lot</span>
-            {s.mmPercent != null && <span className="badge badge-sm">MM {s.mmPercent}%</span>}
           </span>
         </div>
       )}
@@ -322,20 +320,14 @@ export default function SignalCard({
               </div>
               {s.adjusted && (
                 <span className="pb-note">
-                  {s.capReason === 'mm'
-                    ? `⚠ Lot dibatasi MM ${s.mmPercent}% dari modal`
+                  {s.capReason === 'maks-saham'
+                    ? `⚠ Lot dibatasi maks ${formatRupiahRingkas(s.capRupiah)} per saham`
                     : '⚠ Lot dikurangi dari saran normal, disesuaikan sisa modal'}
                 </span>
               )}
             </div>
           )}
 
-          {s.mmPercent != null && (
-            <p className="muted" style={{ marginTop: 6 }}>
-              MM {s.mmPercent}% dari modal
-              {settings ? ` · maksimal ${formatRupiah(settings.capital * (s.mmPercent / 100))}` : ''}
-            </p>
-          )}
           {s.detailStatus && (
             <p className="muted" style={{ marginTop: 2, lineHeight: 1.45 }}>{s.detailStatus}</p>
           )}

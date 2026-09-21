@@ -182,6 +182,7 @@ export default function SinyalPage() {
         const ranked = rankSignals(rankable, {
           capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital,
           maxSlots: settingsData.maxSlots, occupiedSlots, journaledStocks: journaled,
+          maxPerStock: settingsData.maxPerStock,
         });
 
         pruneStaleDismissals();
@@ -323,7 +324,6 @@ export default function SinyalPage() {
         sl: Number(s.sl),
         tp1: Number(s.tp1),
         tp2: s.tp2 ? Number(s.tp2) : null,
-        mmPercent: s.mmPercent ? Number(s.mmPercent) : null,
         capturedAt: new Date().toISOString(),
         tag: s.tag || null,
       }));
@@ -342,12 +342,12 @@ export default function SinyalPage() {
   }
 
   async function saveSettings({
-    capital, riskPercent, maxSlots, entryMode, tpMode,
+    capital, riskPercent, maxSlots, maxPerStock, entryMode, tpMode,
   }) {
     setSettingsSaving(true);
     try {
       await updateSettings(token, sheetId, {
-        capital, riskPercent, maxSlots, entryMode, tpMode,
+        capital, riskPercent, maxSlots, maxPerStock, entryMode, tpMode,
       });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
@@ -413,7 +413,6 @@ export default function SinyalPage() {
       sl: s.sl,
       tp1: s.tp1,
       tp2: s.tp2,
-      mmPercent: s.mmPercent,
       capturedAt: s.capturedAt,
       tag: s.tag,
     }]);
@@ -487,10 +486,6 @@ export default function SinyalPage() {
                 <p className="muted" style={{ marginBottom: 4 }}>TP2 (opsional)</p>
                 <input type="number" value={s.tp2 || ''} onChange={(e) => updateWaReviewField(i, 'tp2', e.target.value)} />
               </div>
-              <div>
-                <p className="muted" style={{ marginBottom: 4 }}>MM %</p>
-                <input type="number" value={s.mmPercent || ''} onChange={(e) => updateWaReviewField(i, 'mmPercent', e.target.value)} />
-              </div>
             </div>
           </div>
         ))}
@@ -551,6 +546,7 @@ export default function SinyalPage() {
         capital={settings ? settings.capital : 0}
         riskPercent={settings ? settings.riskPercent : 0.005}
         maxSlots={settings ? settings.maxSlots : 0}
+        maxPerStock={settings ? settings.maxPerStock : 0}
         entryMode={settings ? settings.entryMode : 'mid'}
         tpMode={settings ? settings.tpMode : 'mid'}
         onSave={saveSettings}

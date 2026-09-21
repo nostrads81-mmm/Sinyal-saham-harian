@@ -199,7 +199,6 @@ export default function WatchlistPage() {
     const sl = parsePriceWithPercent(r.sl).price;
     const tp1 = parsePriceWithPercent(r.tp1).price;
     const tp2 = has(r.tp2) ? parsePriceWithPercent(r.tp2).price : null;
-    const mmPercent = has(r.mmPercent) ? parseIndoNumber(r.mmPercent) : null;
     if (range.low == null || range.high == null || sl == null || tp1 == null) {
       throw new Error(`Data harga ${r.stock} tidak lengkap, tidak bisa dicatat sebagai sinyal.`);
     }
@@ -211,7 +210,6 @@ export default function WatchlistPage() {
       sl,
       tp1,
       tp2,
-      mmPercent,
       // Pakai tanggal aslinya dari watchlist, bukan waktu klik "catat" -
       // biar tanggal di Sinyal sama dengan yang tertulis di Watchlist.
       capturedAt: (parseSheetDate(r.date) || new Date()).toISOString(),
@@ -324,7 +322,6 @@ export default function WatchlistPage() {
             <span className="ticker">{r.stock}</span>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {r.mmPercent && <span className="badge badge-sm">MM {r.mmPercent}</span>}
             {badge && <span className={badge.cls}>{badge.label}</span>}
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyRow(r)}>
               copy

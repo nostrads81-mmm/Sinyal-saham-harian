@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatRupiahRingkas } from '../lib/format';
 import {
   getStoredTheme, setStoredTheme, getStoredTextScale, setStoredTextScale, getStoredBold, setStoredBold,
 } from '../lib/theme';
@@ -44,11 +45,12 @@ function riskDisplayToFraction(display) {
 }
 
 export default function SettingsSheet({
-  open, onClose, capital, riskPercent, maxSlots, entryMode, tpMode, onSave, saving,
+  open, onClose, capital, riskPercent, maxSlots, maxPerStock, entryMode, tpMode, onSave, saving,
 }) {
   const [capitalInput, setCapitalInput] = useState(String(capital));
   const [riskInput, setRiskInput] = useState(riskFractionToDisplay(riskPercent));
   const [slotsInput, setSlotsInput] = useState(String(maxSlots));
+  const [maxPerStockInput, setMaxPerStockInput] = useState(maxPerStock ? String(maxPerStock) : '');
   const [entryModeInput, setEntryModeInput] = useState('mid');
   const [tpModeInput, setTpModeInput] = useState('mid');
   const [theme, setTheme] = useState('dark');
@@ -60,15 +62,22 @@ export default function SettingsSheet({
       setCapitalInput(String(capital));
       setRiskInput(riskFractionToDisplay(riskPercent));
       setSlotsInput(String(maxSlots));
+      setMaxPerStockInput(maxPerStock ? String(maxPerStock) : '');
       setEntryModeInput(entryMode || 'mid');
       setTpModeInput(tpMode || 'mid');
       setTheme(getStoredTheme());
       setTextScale(getStoredTextScale());
       setBold(getStoredBold());
     }
-  }, [open, capital, riskPercent, maxSlots, entryMode, tpMode]);
+  }, [open, capital, riskPercent, maxSlots, maxPerStock, entryMode, tpMode]);
 
   if (!open) return null;
+
+  // What "otomatis" would be right now, shown as a hint so the effect of leaving
+  // the field empty is visible before saving.
+  const autoPerStock = Number(capitalInput) > 0 && Number(slotsInput) > 0
+    ? Number(capitalInput) / Number(slotsInput)
+    : null;
 
   function chooseTheme(next) {
     setTheme(next);
@@ -129,6 +138,23 @@ export default function SettingsSheet({
               value={slotsInput}
               onChange={(e) => setSlotsInput(e.target.value)}
             />
+          </div>
+
+          <div className="field">
+            <label className="field-label">Maks per saham (Rp)</label>
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              placeholder="otomatis"
+              value={maxPerStockInput}
+              onChange={(e) => setMaxPerStockInput(e.target.value)}
+            />
+            <p className="field-hint">
+              Batas belanja untuk satu saham. Kosongkan untuk otomatis: <strong>modal ÷ jumlah slot</strong>
+              {autoPerStock !== null ? ` (sekarang ${formatRupiahRingkas(autoPerStock)})` : ''}.
+              Ukuran posisi tetap dihitung dari rumus risiko, ini hanya plafonnya.
+            </p>
           </div>
 
           <div className="field">
@@ -238,6 +264,9 @@ export default function SettingsSheet({
               capital: Number(capitalInput) || capital,
               riskPercent: riskDisplayToFraction(riskInput) ?? riskPercent,
               maxSlots: Number(slotsInput) || maxSlots,
+              // Empty means "automatic: modal / jumlah slot" - 0 is stored, and
+              // lib/scoring.js reads 0 as "use the even share".
+              maxPerStock: Number(maxPerStockInput) || 0,
               entryMode: entryModeInput,
               tpMode: tpModeInput,
             })}

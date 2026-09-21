@@ -68,13 +68,12 @@ describe('SignalCard', () => {
     expect(html).toContain('Rp1,8 jt');
     expect(html).not.toContain('Rp1.800.000');
     expect(html).toContain('2 lot');
-    expect(html).toContain('MM 10%');
   });
 
   test('a skipped signal keeps its reason visible', () => {
-    const html = render({ signal: { willSkip: true, skipReason: 'batas-mm' } });
+    const html = render({ signal: { willSkip: true, skipReason: 'modal-habis' } });
 
-    expect(html).toContain('skip · MM kecil');
+    expect(html).toContain('skip · modal habis');
     expect(html).toContain('skip-card');
   });
 
