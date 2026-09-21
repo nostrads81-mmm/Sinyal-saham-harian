@@ -1,0 +1,23 @@
+name: Test
+
+# Runs the lib/*.test.js suites on every push and pull request. There was no CI
+# at all before this, which is exactly how two sessions could edit the same
+# helpers (lib/sheets.js) without either side noticing a broken test - the only
+# thing keeping the ranking/format/sheet logic honest was whoever remembered to
+# run `npx jest` locally.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  jest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx jest
