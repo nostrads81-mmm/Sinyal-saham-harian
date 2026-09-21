@@ -324,6 +324,7 @@ export default function WatchlistPage() {
             <span className="ticker">{r.stock}</span>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {r.mmPercent && <span className="badge badge-sm">MM {r.mmPercent}</span>}
             {badge && <span className={badge.cls}>{badge.label}</span>}
             <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyRow(r)}>
               copy
@@ -349,7 +350,6 @@ export default function WatchlistPage() {
           {has(r.tp3) && <> {' · '}TP3 <span className="text-success">{r.tp3}</span></>}
         </p>
         {r.detailStatus && <p className="muted" style={{ marginTop: 2 }}>{r.detailStatus}</p>}
-        {r.mmPercent && <p className="muted" style={{ marginTop: 2 }}>MM: {r.mmPercent}</p>}
         {existing && (
           <span className={`${existing.cls} badge-sm`} style={{ position: 'absolute', right: 15, bottom: 12 }}>
             {existing.label}

@@ -9,11 +9,11 @@ import {
   parseWatchlistRows, parseWatchlistRowsRaw, parseSheetDate, rankSignals, buildWaSignal, mergeSignalSources,
   parseWaMessageText,
 } from '../lib/scoring';
+import SignalCard from '../components/SignalCard';
 import SettingsSheet from '../components/SettingsSheet';
+import { formatRupiah, todayDDMMYYYY } from '../lib/format';
 import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import { getSkippedSignals, skipSignal, unskipSignal, pruneStaleSkips } from '../lib/skippedSignals';
-import TradingViewQuote from '../components/TradingViewQuote';
-import TradingViewButton from '../components/TradingViewButton';
 
 // Temporary: the Google Sheet watchlist is paused as a signal source, so WA
 // screenshots are the only way signals get in right now. Flip back to true
@@ -37,35 +37,8 @@ function readLegacyWaSignals() {
   }
 }
 
-function formatRupiah(n) {
-  return 'Rp' + Math.round(n).toLocaleString('id-ID');
-}
-
-// Segment widths (as flex-grow numbers) for the SL-entry-TP1-TP2 price range
-// bar, proportional to the actual price gaps so the bar visually reflects
-// how far each level sits from the others, not just evenly-spaced ticks.
-// A decorative "beyond TP" filler segment is appended so the bar doesn't
-// end abruptly right at the last known target.
-function buildRangeBar(sl, entry, tp1, tp2) {
-  const slToEntry = Math.max(entry - sl, 0.01);
-  const entryToTp1 = Math.max(tp1 - entry, 0.01);
-  const tp1ToTp2 = Math.max((tp2 != null ? tp2 - tp1 : entryToTp1), 0.01);
-  const beyond = tp1ToTp2 * 0.6;
-  const total = slToEntry + entryToTp1 + tp1ToTp2 + beyond;
-  return {
-    slFlex: slToEntry,
-    midFlex: entryToTp1,
-    tpFlex: tp1ToTp2,
-    beyondFlex: beyond,
-    markerPercent: (slToEntry / total) * 100,
-  };
-}
-
-function todayDDMMYYYY() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
-}
+// Segment widths for the price range bar now live in components/SignalCard.js,
+// next to the markup that uses them.
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -93,22 +66,13 @@ export default function SinyalPage() {
   const [signals, setSignals] = useState([]);
   const [settings, setSettings] = useState(null);
   const [investedCapital, setInvestedCapital] = useState(0);
-  const [journaledStocks, setJournaledStocks] = useState(new Set());
   const [usedSlots, setUsedSlots] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [recordingStock, setRecordingStock] = useState(null);
-  const [fillPrice, setFillPrice] = useState('');
-  const [fillLot, setFillLot] = useState('');
-  const [orderFilled, setOrderFilled] = useState(true);
+  // Only the chart toggle is left here: the per-card form state (which card is
+  // recording, what was typed into it) now lives inside SignalCard, where a
+  // single card's own business belongs.
   const [tvOpen, setTvOpen] = useState(new Set());
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
   const savingRef = useRef(false);
-
-  const [editingEntryStock, setEditingEntryStock] = useState(null);
-  const [entryInput, setEntryInput] = useState('');
-  const [entrySaving, setEntrySaving] = useState(false);
-  const [entryError, setEntryError] = useState(null);
 
   const [waExtracting, setWaExtracting] = useState(false);
   const [waSaving, setWaSaving] = useState(false);
@@ -164,7 +128,6 @@ export default function SinyalPage() {
         const { activeCount: occupiedSlots, journaledStocks: journaled, investedCapital: invested } = journalSummary;
         setSettings(settingsData);
         setInvestedCapital(invested);
-        setJournaledStocks(journaled);
         setUsedSlots(occupiedSlots);
         const parsed = WATCHLIST_SHEET_ENABLED
           ? parseWatchlistRows(rawRows, { entryMode: settingsData.entryMode, tpMode: settingsData.tpMode })
@@ -238,39 +201,24 @@ export default function SinyalPage() {
     return () => { cancelled = true; };
   }, [token, refreshKey]);
 
-  function openRecordForm(s, pos) {
-    setRecordingStock(s.stock);
-    setFillPrice(String(s.entry));
-    setFillLot(pos ? String(Math.round(pos.lembar / 100)) : '');
-    setOrderFilled(true);
-    setSaveError(null);
-  }
-
-  function closeRecordForm() {
-    setRecordingStock(null);
-    setSaveError(null);
-  }
-
-  async function submitRecord(s) {
+  // Called by SignalCard once its own form is filled and validated. Errors are
+  // deliberately NOT caught here: throwing lets the card show the message next
+  // to the fields, instead of the page-level banner that is meant for
+  // load/sign-in failures.
+  async function submitRecord(s, { price, lot, filled }) {
     if (savingRef.current) return;
     savingRef.current = true;
-    setSaving(true);
-    setSaveError(null);
     try {
       const row = [
         // Leading "'" forces Sheets to keep this as literal text instead of
         // silently converting "03-08-2026" into a date serial number (46237).
-        `'${todayDDMMYYYY()}`, s.stock, Number(fillPrice) || s.entry, s.sl, s.tp1, s.tp2 || '',
-        orderFilled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${fillLot || '-'}`, s.tradeType || '', s.tag || '',
+        `'${todayDDMMYYYY()}`, s.stock, price, s.sl, s.tp1, s.tp2 || '',
+        filled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${lot ?? '-'}`, s.tradeType || '', s.tag || '',
       ];
       await appendValues(sheetId, 'DayTrade_Journal!A:L', [row], token);
-      setRecordingStock(null);
       setRefreshKey((k) => k + 1);
-    } catch (e) {
-      setSaveError(e.message);
     } finally {
       savingRef.current = false;
-      setSaving(false);
     }
   }
 
@@ -394,12 +342,12 @@ export default function SinyalPage() {
   }
 
   async function saveSettings({
-    capital, maxSlots, entryMode, tpMode,
+    capital, riskPercent, maxSlots, entryMode, tpMode,
   }) {
     setSettingsSaving(true);
     try {
       await updateSettings(token, sheetId, {
-        capital, maxSlots, entryMode, tpMode,
+        capital, riskPercent, maxSlots, entryMode, tpMode,
       });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
@@ -448,18 +396,6 @@ export default function SinyalPage() {
     }
   }
 
-  function openEditEntry(s) {
-    setEditingEntryStock(s.stock);
-    setEntryInput(String(s.entry));
-    setEntryError(null);
-  }
-
-  function closeEditEntry() {
-    setEditingEntryStock(null);
-    setEntryInput('');
-    setEntryError(null);
-  }
-
   // Editing the entry price shifts buyLow/buyHigh by the same delta instead
   // of collapsing them down to a single number or storing a separate
   // override field - the midpoint-of-range rule that computes `entry`
@@ -467,35 +403,21 @@ export default function SinyalPage() {
   // range bar, etc. don't need special-casing), AND the original buy range
   // width is preserved so "605-630" style context keeps showing under the
   // entry, just recentered on the price the user actually typed.
-  async function submitEditEntry(s) {
-    const newEntry = Number(entryInput);
-    if (!newEntry || newEntry <= 0) {
-      setEntryError('Harga entry tidak valid');
-      return;
-    }
+  async function submitEntry(s, newEntry) {
     const delta = newEntry - s.entry;
-    setEntrySaving(true);
-    setEntryError(null);
-    try {
-      await addWaSignalRows(token, sheetId, [{
-        stock: s.stock,
-        tradeType: s.tradeType,
-        buyLow: s.buyLow + delta,
-        buyHigh: s.buyHigh + delta,
-        sl: s.sl,
-        tp1: s.tp1,
-        tp2: s.tp2,
-        mmPercent: s.mmPercent,
-        capturedAt: s.capturedAt,
-        tag: s.tag,
-      }]);
-      closeEditEntry();
-      setRefreshKey((k) => k + 1);
-    } catch (e) {
-      setEntryError(e.message);
-    } finally {
-      setEntrySaving(false);
-    }
+    await addWaSignalRows(token, sheetId, [{
+      stock: s.stock,
+      tradeType: s.tradeType,
+      buyLow: s.buyLow + delta,
+      buyHigh: s.buyHigh + delta,
+      sl: s.sl,
+      tp1: s.tp1,
+      tp2: s.tp2,
+      mmPercent: s.mmPercent,
+      capturedAt: s.capturedAt,
+      tag: s.tag,
+    }]);
+    setRefreshKey((k) => k + 1);
   }
 
   if (!token) {
@@ -518,258 +440,6 @@ export default function SinyalPage() {
   const sortedSignals = [...signals].sort(sortBest);
   const dayTradeSignals = sortedSignals.filter((s) => s.tradeType === 'DAY TRADE');
   const swingTradeSignals = sortedSignals.filter((s) => s.tradeType === 'SWING TRADE');
-
-  function renderCard(s, isSpotlight) {
-    const pos = s.position || null;
-    const cardKey = s.stock + s.status;
-    return (
-      <div key={cardKey} className={`card ${s.willSkip ? 'skip-card' : ''} ${isSpotlight ? 'spotlight' : ''}`}>
-        <div className="card-row" style={{ alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="ticker">{s.stock}</span>
-            {s.tag && <span className="badge badge-sm">{s.tag}</span>}
-          </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {s.willSkip && s.skipReason === 'modal-habis' && (
-              <span className="badge badge-warning">skip · modal habis</span>
-            )}
-            {s.skipReason === 'dilewati-manual' && (
-              <span className="badge">dilewati manual</span>
-            )}
-            <span className="score-chip">
-              <span className="score-num">{s.score.toFixed(1)}</span>
-              <span className="score-lbl">skor</span>
-            </span>
-            <TradingViewButton onClick={() => toggleTv(cardKey)} active={tvOpen.has(cardKey)} />
-            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => copyOne(s)}>
-              copy
-            </button>
-            {s.isOpen && (
-              <button className="btn" style={{ padding: '4px 8px' }} onClick={() => toggleSkipSignal(s)}>
-                {s.skipReason === 'dilewati-manual' ? 'batalkan skip' : 'skip'}
-              </button>
-            )}
-            <button className="btn" style={{ padding: '4px 8px' }} onClick={() => hapusSignal(s)}>
-              hapus
-            </button>
-          </div>
-        </div>
-        {tvOpen.has(cardKey) && (
-          <div style={{ marginTop: 8 }}>
-            <TradingViewQuote stock={s.stock} />
-          </div>
-        )}
-        {s.ageDays !== null && (
-          <p className="muted" style={{ marginTop: 4 }}>
-            {s.ageDays === 0 ? 'Terbit hari ini' : `Terbit ${s.ageDays} hari lalu`}
-          </p>
-        )}
-        {s.detailStatus && (
-          <p className="muted" style={{ marginTop: 2, lineHeight: 1.45 }}>{s.detailStatus}</p>
-        )}
-        {s.waitFor && (
-          <p className="muted">Tunggu turun ke {s.waitFor} sebelum entry</p>
-        )}
-        {s.estimatedEntry && (
-          <p className="muted">Entry estimasi - cek harga live sebelum eksekusi</p>
-        )}
-        <>
-          {(() => {
-            const rb = buildRangeBar(s.sl, s.entry, s.tp1, s.tp2);
-            return (
-              <div className="range-bar">
-                <div className="range-seg sl" style={{ flex: rb.slFlex }} />
-                <div className="range-seg mid" style={{ flex: rb.midFlex }} />
-                <div className="range-seg tp" style={{ flex: rb.tpFlex }} />
-                <div className="range-seg tp-beyond" style={{ flex: rb.beyondFlex }} />
-                <div className="range-marker" style={{ left: `${rb.markerPercent}%` }} />
-              </div>
-            );
-          })()}
-          <div className="range-labels">
-            <div className="range-label sl">
-              <span className="metric-label">SL</span>
-              <div className="metric-value">{s.sl?.toLocaleString('id-ID')}</div>
-              {pos && pos.lembar > 0 && (
-                <div className="metric-sub">-{formatRupiah((s.entry - s.sl) * pos.lembar)}</div>
-              )}
-            </div>
-            <div className="range-label">
-              <span className="metric-label">Entry</span>
-              {editingEntryStock === s.stock ? (
-                <div className="entry-edit">
-                  <input
-                    type="number"
-                    className="entry-edit-input"
-                    value={entryInput}
-                    onChange={(e) => setEntryInput(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="entry-edit-actions">
-                    <button
-                      type="button"
-                      className="icon-btn-sm"
-                      onClick={() => submitEditEntry(s)}
-                      disabled={entrySaving}
-                      aria-label="Simpan entry"
-                    >
-                      {entrySaving ? '…' : '✓'}
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn-sm"
-                      onClick={closeEditEntry}
-                      disabled={entrySaving}
-                      aria-label="Batal edit entry"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="metric-value entry-value-row">
-                  {s.entry.toLocaleString('id-ID')}
-                  {s.source === 'wa' && (
-                    <button
-                      type="button"
-                      className="entry-edit-btn"
-                      onClick={() => openEditEntry(s)}
-                      aria-label="Edit harga entry"
-                    >
-                      ✎
-                    </button>
-                  )}
-                </div>
-              )}
-              {editingEntryStock === s.stock && entryError && (
-                <div className="metric-sub text-danger">{entryError}</div>
-              )}
-              {editingEntryStock !== s.stock && s.buyLow != null && s.buyHigh != null && s.buyLow !== s.buyHigh && (
-                <div className="metric-sub muted">
-                  {s.buyLow.toLocaleString('id-ID')}-{s.buyHigh.toLocaleString('id-ID')}
-                </div>
-              )}
-            </div>
-            {settings && settings.tpMode === 'separate' ? (
-              <>
-                <div className="range-label tp">
-                  <span className="metric-label">TP1</span>
-                  <div className="metric-value">{s.tp1?.toLocaleString('id-ID')}</div>
-                  {pos && pos.lembar > 0 && (
-                    <div className="metric-sub">+{formatRupiah((s.tp1 - s.entry) * pos.lembar)}</div>
-                  )}
-                </div>
-                {s.tp2 != null && (
-                  <div className="range-label tp">
-                    <span className="metric-label">TP2</span>
-                    <div className="metric-value">{s.tp2.toLocaleString('id-ID')}</div>
-                    {pos && pos.lembar > 0 && (
-                      <div className="metric-sub">+{formatRupiah((s.tp2 - s.entry) * pos.lembar)}</div>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="range-label tp">
-                <span className="metric-label">TP</span>
-                <div className="metric-value">{s.tpMid.toLocaleString('id-ID')}</div>
-                {pos && pos.lembar > 0 && (
-                  <div className="metric-sub">+{formatRupiah((s.tpMid - s.entry) * pos.lembar)}</div>
-                )}
-                {/* TP1/TP2 kept as small reference text under the combined TP
-                    value above (which is their midpoint, see computeScore in
-                    lib/scoring.js) - the big number is what's used for the
-                    score, but the individual targets are still worth knowing. */}
-                <div className="metric-sub muted">
-                  TP1 {s.tp1?.toLocaleString('id-ID')}
-                  {s.tp2 != null && <> · TP2 {s.tp2.toLocaleString('id-ID')}</>}
-                </div>
-              </div>
-            )}
-          </div>
-          {s.tp3 != null && (
-            <p className="muted" style={{ marginTop: 4 }}>TP3: {s.tp3.toLocaleString('id-ID')}</p>
-          )}
-          {s.isOpen && pos && pos.rupiah > 0 && (
-            <div className="position-box">
-              <div className="pb-row">
-                <span className="muted">Saran posisi</span>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>
-                  {formatRupiah(pos.rupiah)} <span className="muted" style={{ fontWeight: 500 }}>· {Math.round(pos.lembar / 100)} lot</span>
-                </span>
-              </div>
-              {s.adjusted && (
-                <span className="pb-note">⚠ Lot dikurangi dari saran normal, disesuaikan sisa modal</span>
-              )}
-            </div>
-          )}
-        </>
-
-        {s.isOpen && !s.willSkip && recordingStock !== s.stock && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button className="btn" style={{ flex: 1 }} onClick={() => openRecordForm(s, pos)}>
-              Catat order ke jurnal
-            </button>
-          </div>
-        )}
-
-        {recordingStock === s.stock && (
-          <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-            <p className="muted" style={{ marginBottom: 4 }}>Harga beli {orderFilled ? 'aktual' : 'yang dipasang'}</p>
-            <input
-              type="number"
-              value={fillPrice}
-              onChange={(e) => setFillPrice(e.target.value)}
-              style={{ marginBottom: 8 }}
-            />
-            <p className="muted" style={{ marginBottom: 4 }}>Jumlah (lot)</p>
-            <input
-              type="number"
-              value={fillLot}
-              onChange={(e) => setFillLot(e.target.value)}
-              style={{ marginBottom: 8 }}
-            />
-            <p className="muted" style={{ marginBottom: 4 }}>Status order</p>
-            <div className="segmented" style={{ marginBottom: 8 }}>
-              <button
-                type="button"
-                className={`seg-btn ${orderFilled ? 'active' : ''}`}
-                onClick={() => setOrderFilled(true)}
-              >
-                Sudah ke-fill
-              </button>
-              <button
-                type="button"
-                className={`seg-btn ${!orderFilled ? 'active' : ''}`}
-                onClick={() => setOrderFilled(false)}
-              >
-                Baru dipasang, belum fill
-              </button>
-            </div>
-            {!orderFilled && (
-              <p className="muted" style={{ marginBottom: 8 }}>
-                Dana akan dikunci di kalkulasi modal/slot, tapi belum dihitung sebagai posisi berjalan sampai dikonfirmasi fill di Rekapan.
-              </p>
-            )}
-            {saveError && <p className="muted text-danger">{saveError}</p>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn" style={{ flex: 1 }} onClick={closeRecordForm} disabled={saving}>
-                Batal
-              </button>
-              <button
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-                onClick={() => submitRecord(s)}
-                disabled={saving}
-              >
-                {saving ? 'Menyimpan...' : 'Simpan'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   if (waReview !== null) {
     return (
@@ -879,6 +549,7 @@ export default function SinyalPage() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         capital={settings ? settings.capital : 0}
+        riskPercent={settings ? settings.riskPercent : 0.005}
         maxSlots={settings ? settings.maxSlots : 0}
         entryMode={settings ? settings.entryMode : 'mid'}
         tpMode={settings ? settings.tpMode : 'mid'}
@@ -912,11 +583,39 @@ export default function SinyalPage() {
 
       <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>Day Trade</p>
       {dayTradeSignals.length === 0 && <p className="muted">Belum ada sinyal day trade hari ini.</p>}
-      {dayTradeSignals.map((s, i) => renderCard(s, i === 0 && !s.willSkip))}
+      {dayTradeSignals.map((s, i) => (
+        <SignalCard
+          key={s.stock + s.status}
+          signal={s}
+          settings={settings}
+          spotlight={i === 0 && !s.willSkip}
+          tvOpen={tvOpen.has(s.stock + s.status)}
+          onCopy={copyOne}
+          onToggleTv={() => toggleTv(s.stock + s.status)}
+          onToggleSkip={toggleSkipSignal}
+          onRemove={hapusSignal}
+          onSaveRecord={submitRecord}
+          onSaveEntry={submitEntry}
+        />
+      ))}
 
       <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Swing Trade</p>
       {swingTradeSignals.length === 0 && <p className="muted">Belum ada sinyal swing trade hari ini.</p>}
-      {swingTradeSignals.map((s, i) => renderCard(s, i === 0 && !s.willSkip))}
+      {swingTradeSignals.map((s, i) => (
+        <SignalCard
+          key={s.stock + s.status}
+          signal={s}
+          settings={settings}
+          spotlight={i === 0 && !s.willSkip}
+          tvOpen={tvOpen.has(s.stock + s.status)}
+          onCopy={copyOne}
+          onToggleTv={() => toggleTv(s.stock + s.status)}
+          onToggleSkip={toggleSkipSignal}
+          onRemove={hapusSignal}
+          onSaveRecord={submitRecord}
+          onSaveEntry={submitEntry}
+        />
+      ))}
 
       <button className="btn" style={{ marginTop: 16, width: '100%' }} onClick={() => { signOut(); setToken(null); }}>
         Keluar

@@ -21,10 +21,33 @@ const TP_MODE_OPTIONS = [
   { value: 'mid', label: 'TP Tengah' },
 ];
 
+// riskPercent is stored as a fraction (e.g. 0.005) but shown to the user as
+// a percentage (0,5). Keep the conversion in one place so both the input and
+// the save handler agree on the format.
+function riskFractionToDisplay(fraction) {
+  const n = Number(fraction);
+  if (!Number.isFinite(n)) return '';
+  return String(+(n * 100).toFixed(4));
+}
+
+// Empty or invalid input means "leave the stored value alone" - same as the
+// Modal/Jumlah slot fields, which fall back with `|| capital`. This matters
+// more here: Number('') is 0, so without the explicit empty check a cleared
+// field would read as a legitimate "risiko 0%" and every position would be
+// sized to 0 lot the next time signals load. 0 itself is also rejected - a
+// zero risk percent can never produce a usable position size.
+function riskDisplayToFraction(display) {
+  if (String(display).trim() === '') return null;
+  const n = Number(display);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n / 100;
+}
+
 export default function SettingsSheet({
-  open, onClose, capital, maxSlots, entryMode, tpMode, onSave, saving,
+  open, onClose, capital, riskPercent, maxSlots, entryMode, tpMode, onSave, saving,
 }) {
   const [capitalInput, setCapitalInput] = useState(String(capital));
+  const [riskInput, setRiskInput] = useState(riskFractionToDisplay(riskPercent));
   const [slotsInput, setSlotsInput] = useState(String(maxSlots));
   const [entryModeInput, setEntryModeInput] = useState('mid');
   const [tpModeInput, setTpModeInput] = useState('mid');
@@ -35,6 +58,7 @@ export default function SettingsSheet({
   useEffect(() => {
     if (open) {
       setCapitalInput(String(capital));
+      setRiskInput(riskFractionToDisplay(riskPercent));
       setSlotsInput(String(maxSlots));
       setEntryModeInput(entryMode || 'mid');
       setTpModeInput(tpMode || 'mid');
@@ -42,7 +66,7 @@ export default function SettingsSheet({
       setTextScale(getStoredTextScale());
       setBold(getStoredBold());
     }
-  }, [open, capital, maxSlots, entryMode, tpMode]);
+  }, [open, capital, riskPercent, maxSlots, entryMode, tpMode]);
 
   if (!open) return null;
 
@@ -81,6 +105,21 @@ export default function SettingsSheet({
               value={capitalInput}
               onChange={(e) => setCapitalInput(e.target.value)}
             />
+          </div>
+
+          <div className="field">
+            <label className="field-label">Risiko per trade (%)</label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              inputMode="decimal"
+              value={riskInput}
+              onChange={(e) => setRiskInput(e.target.value)}
+            />
+            <p className="field-hint">
+              Persentase modal yang dirisikokan tiap posisi. Dipakai untuk menghitung ukuran posisi dari jarak entry ke stop loss.
+            </p>
           </div>
 
           <div className="field">
@@ -197,6 +236,7 @@ export default function SettingsSheet({
             disabled={saving}
             onClick={() => onSave({
               capital: Number(capitalInput) || capital,
+              riskPercent: riskDisplayToFraction(riskInput) ?? riskPercent,
               maxSlots: Number(slotsInput) || maxSlots,
               entryMode: entryModeInput,
               tpMode: tpModeInput,

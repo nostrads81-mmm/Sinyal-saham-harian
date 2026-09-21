@@ -5,58 +5,11 @@ import {
   ensureSheetsInitialized, getOrCreateAppDataSheetId,
 } from '../lib/sheets';
 import { computeTpMid } from '../lib/scoring';
+import { daysHeld, computeNetPnl } from '../lib/pnl';
 import SettingsSheet from '../components/SettingsSheet';
-import TradingViewQuote from '../components/TradingViewQuote';
-import TradingViewButton from '../components/TradingViewButton';
-
-function todayDDMMYYYY() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
-}
-
-function formatRupiah(n) {
-  return 'Rp' + Math.round(n).toLocaleString('id-ID');
-}
-
-// Catatan stores "Lot: 31" (set when recording the trade from Tab Sinyal).
-function parseLot(catatan) {
-  const match = String(catatan || '').match(/Lot:\s*(\d+)/i);
-  return match ? Number(match[1]) : 0;
-}
-
-function parseDDMMYYYY(s) {
-  const match = String(s || '').trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  if (!match) return null;
-  const [, dd, mm, yyyy] = match;
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-}
-
-function daysHeld(entryDate, exitDate) {
-  const from = parseDDMMYYYY(entryDate);
-  const to = parseDDMMYYYY(exitDate);
-  if (!from || !to) return null;
-  return Math.round((to.setHours(0, 0, 0, 0) - from.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24));
-}
-
-// Net P&L after Stockbit's buy/sell fees and stamp duty (materai) - not just
-// the raw price difference. Falls back to a fee-free estimate when the lot
-// wasn't recorded (older entries from before this was tracked).
-function computeNetPnl(entry, exit, lot, settings) {
-  if (!entry || !exit) return null;
-  const shares = lot * 100;
-  if (shares <= 0) {
-    return { pnlRp: null, pnlPercent: ((exit - entry) / entry) * 100, estimated: true };
-  }
-  const buyValue = entry * shares;
-  const sellValue = exit * shares;
-  const buyMateraiHit = buyValue > settings.materaiThreshold ? settings.materaiAmount : 0;
-  const sellMateraiHit = sellValue > settings.materaiThreshold ? settings.materaiAmount : 0;
-  const buyCost = buyValue * (1 + settings.buyFeePercent) + buyMateraiHit;
-  const sellProceeds = sellValue * (1 - settings.sellFeePercent) - sellMateraiHit;
-  const pnlRp = sellProceeds - buyCost;
-  return { pnlRp, pnlPercent: (pnlRp / buyCost) * 100, estimated: false };
-}
+import PositionCard from '../components/PositionCard';
+import { parseHargaInput, parseLotInput } from '../lib/journalInput';
+import { formatRupiah, formatRupiahRingkas, todayDDMMYYYY, parseLotFromCatatan } from '../lib/format';
 
 const STATUS_BADGE = {
   RUNNING: { cls: 'badge', label: 'running' },
@@ -80,6 +33,7 @@ export default function RekapanPage() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [expandedRow, setExpandedRow] = useState(null);
+  const [menuRow, setMenuRow] = useState(null);
   const [tvOpen, setTvOpen] = useState(new Set());
   // "Sudah terjual" list is hidden by default - most visits only care
   // about open positions, so closed history stays out of the way until
@@ -152,11 +106,16 @@ export default function RekapanPage() {
 
   async function submitClose(entry) {
     if (savingRef.current) return;
+    const parsedExit = parseHargaInput(exitPrice);
+    if (parsedExit.error || parsedExit.value === null) {
+      setError(parsedExit.error || 'Harga exit wajib diisi');
+      return;
+    }
     savingRef.current = true;
     setSaving(true);
     try {
-      const exit = Number(exitPrice);
-      const lot = parseLot(entry.catatan);
+      const exit = parsedExit.value;
+      const lot = parseLotFromCatatan(entry.catatan);
       const net = computeNetPnl(entry.entry, exit, lot, settings);
       const status = net.pnlPercent >= 0 ? 'CLOSE-PROFIT' : 'CLOSE-LOSS';
       await closeJournalEntry(token, sheetId, entry.rowNumber, {
@@ -177,17 +136,23 @@ export default function RekapanPage() {
   function openConfirmForm(entry) {
     setConfirmingRow(entry.rowNumber);
     setConfirmPrice(String(entry.entry));
-    setConfirmLot(String(parseLot(entry.catatan)));
+    setConfirmLot(String(parseLotFromCatatan(entry.catatan)));
   }
 
   async function submitConfirmFill(entry) {
     if (savingRef.current) return;
+    const parsedPrice = parseHargaInput(confirmPrice);
+    const parsedLot = parseLotInput(confirmLot);
+    if (parsedPrice.error || parsedLot.error) {
+      setError(parsedPrice.error || parsedLot.error);
+      return;
+    }
     savingRef.current = true;
     setSaving(true);
     try {
       await confirmJournalFill(token, sheetId, entry.rowNumber, {
-        entry: Number(confirmPrice) || entry.entry,
-        lot: Number(confirmLot) || parseLot(entry.catatan),
+        entry: parsedPrice.value ?? entry.entry,
+        lot: parsedLot.value ?? parseLotFromCatatan(entry.catatan),
       });
       setConfirmingRow(null);
       setRefreshKey((k) => k + 1);
@@ -212,10 +177,17 @@ export default function RekapanPage() {
     }
   }
 
-  async function saveSettings({ capital, maxSlots }) {
+  // Same five fields the Sinyal tab saves - this sheet is the same
+  // Pengaturan panel on both tabs, so it must not quietly drop the settings
+  // only Sinyal used to write (risiko per trade, basis entry, tampilan TP).
+  async function saveSettings({
+    capital, riskPercent, maxSlots, entryMode, tpMode,
+  }) {
     setSettingsSaving(true);
     try {
-      await updateSettings(token, sheetId, { capital, maxSlots });
+      await updateSettings(token, sheetId, {
+        capital, riskPercent, maxSlots, entryMode, tpMode,
+      });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
     } catch (e) {
@@ -242,7 +214,7 @@ export default function RekapanPage() {
     ? entries.filter((e) => e.status === 'RUNNING' || e.status === 'PENDING' || e.status === 'OPEN')
     : [];
   const closedEntries = closed;
-  const closedNet = closed.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLot(e.catatan), settings));
+  const closedNet = closed.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLotFromCatatan(e.catatan), settings));
   const wins = closedNet.filter((n) => n && n.pnlPercent >= 0).length;
   const losses = closedNet.filter((n) => n && n.pnlPercent < 0).length;
   const winRate = closed.length > 0 ? (wins / closed.length) * 100 : null;
@@ -257,7 +229,7 @@ export default function RekapanPage() {
   function winStatsFor(tradeType) {
     const list = closed.filter((e) => e.tradeType === tradeType);
     if (list.length === 0) return null;
-    const net = list.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLot(e.catatan), settings));
+    const net = list.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLotFromCatatan(e.catatan), settings));
     const w = net.filter((n) => n && n.pnlPercent >= 0).length;
     return { winRate: (w / list.length) * 100, wins: w, losses: list.length - w, total: list.length };
   }
@@ -281,22 +253,37 @@ export default function RekapanPage() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         capital={settings ? settings.capital : 0}
+        riskPercent={settings ? settings.riskPercent : 0.005}
         maxSlots={settings ? settings.maxSlots : 0}
+        entryMode={settings ? settings.entryMode : 'mid'}
+        tpMode={settings ? settings.tpMode : 'mid'}
         onSave={saveSettings}
         saving={settingsSaving}
       />
 
-      <div className="stat-grid">
+      <div className="hero-row">
+        <div>
+          <div className="hero-label">Total P&amp;L bersih</div>
+          <div className={`hero-value ${totalPnlRp >= 0 ? 'text-success' : 'text-danger'}`}>
+            {closedEntries.length > 0 ? `${totalPnlRp >= 0 ? '+' : ''}${formatRupiahRingkas(totalPnlRp)}` : '-'}
+          </div>
+          {closedEntries.length > 0 && (
+            <p className="muted" style={{ margin: '2px 0 0' }}>
+              {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+              {anyEstimated ? ' · sebagian estimasi (lot tidak tercatat)' : ''}
+            </p>
+          )}
+        </div>
+        <span className="slot-pill">{runningEntries.length} posisi berjalan</span>
+      </div>
+
+      {/* Win rate / menang / kalah stay in small tiles: they matter over weeks,
+          while the P&L above is what gets looked at every day. */}
+      <div className="stat-grid cols-3">
         <div className="stat-tile">
           <div className="stat-label">Win rate</div>
           <div className="stat-value text-success">
             {winRate !== null ? `${winRate.toFixed(1)}%` : '-'}
-          </div>
-        </div>
-        <div className="stat-tile">
-          <div className="stat-label">Total P&L bersih</div>
-          <div className={`stat-value ${totalPnlRp >= 0 ? 'text-success' : 'text-danger'}`} style={{ fontSize: 16 }}>
-            {closed.length > 0 ? `${totalPnlRp >= 0 ? '+' : ''}${formatRupiah(totalPnlRp)}` : '-'}
           </div>
         </div>
         <div className="stat-tile">
@@ -308,12 +295,6 @@ export default function RekapanPage() {
           <div className="stat-value">{losses}</div>
         </div>
       </div>
-      {closed.length > 0 && (
-        <p className="muted" style={{ marginTop: -10, marginBottom: 12 }}>
-          Total P&amp;L% bersih: {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
-          {anyEstimated ? ' (sebagian estimasi - lot tidak tercatat)' : ''}
-        </p>
-      )}
 
       {(dayStats || swingStats) && (
         <div className="settings-section">
@@ -356,123 +337,44 @@ export default function RekapanPage() {
         <p className="muted">Belum ada transaksi tercatat. Catat dari Tab Sinyal setelah beli.</p>
       )}
 
-      {settings && runningEntries.map((e) => {
+{settings && runningEntries.map((e) => {
         const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
-        const lot = parseLot(e.catatan);
+        const lot = parseLotFromCatatan(e.catatan);
+        const expanded = expandedRow === e.rowNumber;
         return (
-          <div key={e.rowNumber} className="card">
-            <div className="card-row">
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span className="ticker">{e.stock}</span>
-                {e.tag && <span className="badge badge-sm">{e.tag}</span>}
-              </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <TradingViewButton onClick={() => toggleTv(e.rowNumber)} active={tvOpen.has(e.rowNumber)} />
-                <span className={badge.cls}>{badge.label}</span>
-              </div>
-            </div>
-            {tvOpen.has(e.rowNumber) && (
-              <div style={{ marginTop: 8 }}>
-                <TradingViewQuote stock={e.stock} />
-              </div>
-            )}
-            <p className="muted" style={{ marginTop: 2 }}>
-              Entry {e.entry?.toLocaleString('id-ID')} &middot; {lot ? `${lot} lot` : '- lot'} &middot; {e.tanggalEntry}
-            </p>
-            <p className="muted" style={{ marginTop: 2 }}>
-              SL <span className="text-danger">{e.sl?.toLocaleString('id-ID') || '-'}</span>
-              {settings && settings.tpMode === 'separate' ? (
-                <>
-                  {' · '}TP1 <span className="text-success">{e.tp1?.toLocaleString('id-ID') || '-'}</span>
-                  {e.tp2 ? <> {' · '}TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></> : null}
-                </>
-              ) : (
-                e.tp1 != null && (
-                  <> {' · '}TP <span className="text-success">{computeTpMid(e.tp1, e.tp2).toLocaleString('id-ID')}</span></>
-                )
-              )}
-            </p>
-
-            {e.status === 'PENDING' && confirmingRow !== e.rowNumber && (
-              <p className="muted" style={{ marginTop: 6 }}>
-                Dana sudah dihitung terkunci di modal/slot, tapi posisi belum aktif sampai order ke-fill di broker.
-              </p>
-            )}
-
-            {e.status === 'PENDING' && confirmingRow !== e.rowNumber && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button className="btn" style={{ flex: 1 }} onClick={() => openConfirmForm(e)}>
-                  Konfirmasi fill
-                </button>
-                <button className="btn" onClick={() => cancelOrder(e)} disabled={cancelling}>
-                  Batalkan order
-                </button>
-              </div>
-            )}
-
-            {confirmingRow === e.rowNumber && (
-              <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                <p className="muted" style={{ marginBottom: 4 }}>Harga fill aktual</p>
-                <input
-                  type="number"
-                  value={confirmPrice}
-                  onChange={(ev) => setConfirmPrice(ev.target.value)}
-                  style={{ marginBottom: 8 }}
-                />
-                <p className="muted" style={{ marginBottom: 4 }}>Jumlah (lot)</p>
-                <input
-                  type="number"
-                  value={confirmLot}
-                  onChange={(ev) => setConfirmLot(ev.target.value)}
-                  style={{ marginBottom: 8 }}
-                />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn" style={{ flex: 1 }} onClick={() => setConfirmingRow(null)} disabled={saving}>
-                    Batal
-                  </button>
-                  <button
-                    className="btn btn-primary"
-                    style={{ flex: 1 }}
-                    onClick={() => submitConfirmFill(e)}
-                    disabled={saving}
-                  >
-                    {saving ? 'Menyimpan...' : 'Sudah ke-fill'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {e.status !== 'PENDING' && closingRow !== e.rowNumber && (
-              <button className="btn" style={{ marginTop: 8, width: '100%' }} onClick={() => openCloseForm(e)}>
-                Tutup posisi
-              </button>
-            )}
-
-            {e.status !== 'PENDING' && closingRow === e.rowNumber && (
-              <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                <p className="muted" style={{ marginBottom: 4 }}>Harga exit</p>
-                <input
-                  type="number"
-                  value={exitPrice}
-                  onChange={(ev) => setExitPrice(ev.target.value)}
-                  style={{ marginBottom: 8 }}
-                />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn" style={{ flex: 1 }} onClick={() => setClosingRow(null)} disabled={saving}>
-                    Batal
-                  </button>
-                  <button
-                    className="btn btn-primary"
-                    style={{ flex: 1 }}
-                    onClick={() => submitClose(e)}
-                    disabled={saving || !exitPrice}
-                  >
-                    {saving ? 'Menyimpan...' : 'Simpan'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <PositionCard
+            key={e.rowNumber}
+            entry={e}
+            settings={settings}
+            badge={badge}
+            lot={lot}
+            ui={{
+              expanded,
+              confirming: confirmingRow === e.rowNumber,
+              closing: closingRow === e.rowNumber,
+              menuOpen: menuRow === e.rowNumber,
+              tvOpen: tvOpen.has(e.rowNumber),
+              cancelling,
+              saving,
+              confirmPrice,
+              confirmLot,
+              exitPrice,
+            }}
+            actions={{
+              onToggleExpand: () => { setExpandedRow(expanded ? null : e.rowNumber); setMenuRow(null); },
+              onToggleMenu: () => setMenuRow(menuRow === e.rowNumber ? null : e.rowNumber),
+              onToggleTv: () => toggleTv(e.rowNumber),
+              onStartConfirm: () => openConfirmForm(e),
+              onStartClose: () => openCloseForm(e),
+              onCancelForm: () => { setConfirmingRow(null); setClosingRow(null); },
+              onConfirmPriceChange: setConfirmPrice,
+              onConfirmLotChange: setConfirmLot,
+              onExitPriceChange: setExitPrice,
+              onSubmitConfirm: () => submitConfirmFill(e),
+              onSubmitClose: () => submitClose(e),
+              onCancelOrder: () => { setMenuRow(null); cancelOrder(e); },
+            }}
+          />
         );
       })}
 
@@ -492,26 +394,29 @@ export default function RekapanPage() {
           </button>
           {showClosed && closedEntries.map((e) => {
             const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
-            const lot = parseLot(e.catatan);
+            const lot = parseLotFromCatatan(e.catatan);
             const net = computeNetPnl(e.entry, e.hargaExit, lot, settings);
             const held = daysHeld(e.tanggalEntry, e.tanggalExit);
             const expanded = expandedRow === e.rowNumber;
             return (
-              <div
-                key={e.rowNumber}
-                className="card"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setExpandedRow(expanded ? null : e.rowNumber)}
-              >
-                <div className="card-row">
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div key={e.rowNumber} className="card signal-card">
+                <button
+                  type="button"
+                  className="signal-head"
+                  onClick={() => setExpandedRow(expanded ? null : e.rowNumber)}
+                  aria-expanded={expanded}
+                >
+                  <span className="signal-head-left">
                     <span className="ticker">{e.stock}</span>
                     {e.tag && <span className="badge badge-sm">{e.tag}</span>}
-                  </div>
-                  <span className={badge.cls}>
-                    {net ? `${net.pnlPercent >= 0 ? '+' : ''}${net.pnlPercent.toFixed(2)}%` : badge.label}
                   </span>
-                </div>
+                  <span className="signal-head-right">
+                    <span className={badge.cls}>
+                      {net ? `${net.pnlPercent >= 0 ? '+' : ''}${net.pnlPercent.toFixed(2)}%` : badge.label}
+                    </span>
+                    <span className={`chev ${expanded ? 'open' : ''}`} aria-hidden="true">▾</span>
+                  </span>
+                </button>
                 <p className="muted" style={{ marginTop: 2 }}>
                   {e.tanggalEntry} &rarr; {e.tanggalExit}
                   {held !== null ? ` · ${held} hari` : ''}
