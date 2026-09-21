@@ -45,12 +45,18 @@ function riskDisplayToFraction(display) {
 }
 
 export default function SettingsSheet({
-  open, onClose, capital, riskPercent, maxSlots, maxPerStock, entryMode, tpMode, onSave, saving,
+  open, onClose, capital, riskPercent, maxSlots, maxPerStock,
+  buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
+  entryMode, tpMode, onSave, saving,
 }) {
   const [capitalInput, setCapitalInput] = useState(String(capital));
   const [riskInput, setRiskInput] = useState(riskFractionToDisplay(riskPercent));
   const [slotsInput, setSlotsInput] = useState(String(maxSlots));
   const [maxPerStockInput, setMaxPerStockInput] = useState(maxPerStock ? String(maxPerStock) : '');
+  const [buyFeeInput, setBuyFeeInput] = useState(riskFractionToDisplay(buyFeePercent));
+  const [sellFeeInput, setSellFeeInput] = useState(riskFractionToDisplay(sellFeePercent));
+  const [materaiInput, setMateraiInput] = useState(String(materaiAmount));
+  const [materaiThresholdInput, setMateraiThresholdInput] = useState(String(materaiThreshold));
   const [entryModeInput, setEntryModeInput] = useState('mid');
   const [tpModeInput, setTpModeInput] = useState('mid');
   const [theme, setTheme] = useState('dark');
@@ -63,13 +69,20 @@ export default function SettingsSheet({
       setRiskInput(riskFractionToDisplay(riskPercent));
       setSlotsInput(String(maxSlots));
       setMaxPerStockInput(maxPerStock ? String(maxPerStock) : '');
+      setBuyFeeInput(riskFractionToDisplay(buyFeePercent));
+      setSellFeeInput(riskFractionToDisplay(sellFeePercent));
+      setMateraiInput(String(materaiAmount));
+      setMateraiThresholdInput(String(materaiThreshold));
       setEntryModeInput(entryMode || 'mid');
       setTpModeInput(tpMode || 'mid');
       setTheme(getStoredTheme());
       setTextScale(getStoredTextScale());
       setBold(getStoredBold());
     }
-  }, [open, capital, riskPercent, maxSlots, maxPerStock, entryMode, tpMode]);
+  }, [
+    open, capital, riskPercent, maxSlots, maxPerStock,
+    buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold, entryMode, tpMode,
+  ]);
 
   if (!open) return null;
 
@@ -105,6 +118,7 @@ export default function SettingsSheet({
           </button>
         </div>
 
+        <div className="sheet-body">
         <div className="settings-section">
           <p className="settings-section-title">💰 Modal &amp; Risiko</p>
           <div className="field">
@@ -197,6 +211,61 @@ export default function SettingsSheet({
         </div>
 
         <div className="settings-section">
+          <p className="settings-section-title">🧾 Biaya &amp; Materai</p>
+          <div className="field">
+            <label className="field-label">Fee beli (%)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={buyFeeInput}
+              onChange={(e) => setBuyFeeInput(e.target.value)}
+            />
+            <p className="field-hint">
+              Komisi broker saat beli, sebagai persen dari nilai (0,15 = 0,15%). Dihitung dalam P&amp;L bersih di Rekapan.
+            </p>
+          </div>
+
+          <div className="field">
+            <label className="field-label">Fee jual (%)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={sellFeeInput}
+              onChange={(e) => setSellFeeInput(e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field-label">Materai per tiap sisi (Rp)</label>
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              value={materaiInput}
+              onChange={(e) => setMateraiInput(e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field-label">Batas kena materai (Rp)</label>
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              value={materaiThresholdInput}
+              onChange={(e) => setMateraiThresholdInput(e.target.value)}
+            />
+            <p className="field-hint">
+              Materai kena tiap sisi saja kalau nilai transaksi melebihi batas ini.
+            </p>
+          </div>
+        </div>
+
+        <div className="settings-section">
           <p className="settings-section-title">🎨 Tampilan</p>
           <div className="field">
             <label className="field-label">Tema</label>
@@ -254,6 +323,7 @@ export default function SettingsSheet({
             </div>
           </div>
         </div>
+        </div>
 
         <div className="sheet-actions">
           <button className="btn" onClick={onClose} disabled={saving}>Batal</button>
@@ -267,6 +337,10 @@ export default function SettingsSheet({
               // Empty means "automatic: modal / jumlah slot" - 0 is stored, and
               // lib/scoring.js reads 0 as "use the even share".
               maxPerStock: Number(maxPerStockInput) || 0,
+              buyFeePercent: riskDisplayToFraction(buyFeeInput) ?? buyFeePercent,
+              sellFeePercent: riskDisplayToFraction(sellFeeInput) ?? sellFeePercent,
+              materaiAmount: Number(materaiInput) || materaiAmount,
+              materaiThreshold: Number(materaiThresholdInput) || materaiThreshold,
               entryMode: entryModeInput,
               tpMode: tpModeInput,
             })}

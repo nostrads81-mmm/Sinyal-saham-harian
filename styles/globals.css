@@ -575,8 +575,24 @@ textarea:focus, input:focus {
   background: var(--surface);
   border-top: 1px solid var(--border-strong);
   border-radius: 20px 20px 0 0;
-  padding: 10px 18px calc(20px + env(safe-area-inset-bottom, 0));
+  padding: 10px 18px 20px;
+  /* The panel as a column: header fixed, content scrolls, actions stay stuck
+     to the bottom - like a native bottom sheet, the page stays live and dimmed
+     behind it. */
+  display: flex;
+  flex-direction: column;
+  max-height: 92%;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0));
 }
+
+.sheet-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 2px;
+}
+
+.sheet-actions { display: flex; gap: 8px; margin-top: 0; padding-top: 14px; flex-shrink: 0; }
 
 .sheet-handle {
   width: 36px;
@@ -665,7 +681,7 @@ textarea:focus, input:focus {
 .seg-btn.active { background: var(--accent); color: var(--accent-ink); }
 
 .sheet-actions { display: flex; gap: 8px; margin-top: 20px; }
-.sheet-actions .btn { flex: 1; }
+.sheet-actions .btn { flex: 1; min-height: 48px; }
 
 /* Horizontally-scrollable filter row (Watchlist) - more options than a
    .segmented toggle comfortably fits, so chips scroll instead of squeezing. */

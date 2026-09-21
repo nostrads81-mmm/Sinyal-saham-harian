@@ -12,6 +12,7 @@ import {
 import SignalCard from '../components/SignalCard';
 import SettingsSheet from '../components/SettingsSheet';
 import { formatRupiah, todayDDMMYYYY } from '../lib/format';
+import { safeGetItem, safeRemoveItem } from '../lib/storage';
 import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import { getSkippedSignals, skipSignal, unskipSignal, pruneStaleSkips } from '../lib/skippedSignals';
 
@@ -31,7 +32,7 @@ const LEGACY_WA_STORAGE_KEY = 'wa_signals_buffer_v2';
 function readLegacyWaSignals() {
   if (typeof window === 'undefined') return [];
   try {
-    return JSON.parse(localStorage.getItem(LEGACY_WA_STORAGE_KEY) || '[]');
+    return JSON.parse(safeGetItem(LEGACY_WA_STORAGE_KEY) || '[]');
   } catch {
     return [];
   }
@@ -149,7 +150,7 @@ export default function SinyalPage() {
           const legacy = readLegacyWaSignals();
           if (legacy.length > 0) {
             await addWaSignalRows(token, resolvedSheetId, legacy);
-            localStorage.removeItem(LEGACY_WA_STORAGE_KEY);
+            safeRemoveItem(LEGACY_WA_STORAGE_KEY);
             effectiveWaRaw = legacy;
           }
         }
@@ -342,12 +343,16 @@ export default function SinyalPage() {
   }
 
   async function saveSettings({
-    capital, riskPercent, maxSlots, maxPerStock, entryMode, tpMode,
+    capital, riskPercent, maxSlots, maxPerStock,
+    buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
+    entryMode, tpMode,
   }) {
     setSettingsSaving(true);
     try {
       await updateSettings(token, sheetId, {
-        capital, riskPercent, maxSlots, maxPerStock, entryMode, tpMode,
+        capital, riskPercent, maxSlots, maxPerStock,
+        buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
+        entryMode, tpMode,
       });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
@@ -547,6 +552,10 @@ export default function SinyalPage() {
         riskPercent={settings ? settings.riskPercent : 0.005}
         maxSlots={settings ? settings.maxSlots : 0}
         maxPerStock={settings ? settings.maxPerStock : 0}
+        buyFeePercent={settings ? settings.buyFeePercent : 0.0015}
+        sellFeePercent={settings ? settings.sellFeePercent : 0.0025}
+        materaiAmount={settings ? settings.materaiAmount : 10000}
+        materaiThreshold={settings ? settings.materaiThreshold : 10000000}
         entryMode={settings ? settings.entryMode : 'mid'}
         tpMode={settings ? settings.tpMode : 'mid'}
         onSave={saveSettings}
