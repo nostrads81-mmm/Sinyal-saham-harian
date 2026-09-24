@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { getAccessToken, getStoredToken } from '../lib/auth';
+import { getAccessToken, resolveInitialToken } from '../lib/auth';
 import {
   getValues, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
   getOrCreateAppDataSheetId, ensureSheetsInitialized, addWaSignalRows, getWaSignalRows, getJournaledStocks,
@@ -92,6 +92,7 @@ const rowKey = (r) => `${r.stock}-${r.date}`;
 export default function WatchlistPage() {
   const router = useRouter();
   const [token, setToken] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
@@ -106,7 +107,13 @@ export default function WatchlistPage() {
   const [statusFilters, setStatusFilters] = useState(new Set());
 
   useEffect(() => {
-    setToken(getStoredToken());
+    let cancelled = false;
+    resolveInitialToken().then((t) => {
+      if (cancelled) return;
+      setToken(t);
+      setCheckingAuth(false);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   async function handleSignIn() {
@@ -150,6 +157,14 @@ export default function WatchlistPage() {
   }, [token, refreshKey]);
 
   if (!token) {
+    if (checkingAuth) {
+      return (
+        <div className="center-box">
+          <div className="login-icon">📈</div>
+          <p className="muted">Memeriksa sesi Google...</p>
+        </div>
+      );
+    }
     return (
       <div className="center-box">
         <div className="login-icon">📈</div>
