@@ -288,7 +288,7 @@ export default function RekapanPage() {
         <div>
           <div className="hero-label">Total P&amp;L bersih</div>
           <div className={`hero-value ${totalPnlRp >= 0 ? 'text-success' : 'text-danger'}`}>
-            {closedEntries.length > 0 ? `${totalPnlRp >= 0 ? '+' : ''}${formatRupiahRingkas(totalPnlRp)}` : '-'}
+            {closedEntries.length > 0 ? `${totalPnlRp >= 0 ? '+' : ''}${formatRupiah(totalPnlRp)}` : '-'}
           </div>
           {closedEntries.length > 0 && (
             <p className="muted" style={{ margin: '2px 0 0' }}>
