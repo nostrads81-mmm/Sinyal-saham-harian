@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
 import {
   getValues, appendValues, ensureSheetsInitialized, getOrCreateAppDataSheetId, getSettings, updateSettings,
-  getActiveJournalSummary, getWaSignalRows, addWaSignalRows, removeWaSignalRow,
+  getActiveJournalSummary, getJournalEntries, getModalHistory, addModalTransaction,
+  getWaSignalRows, addWaSignalRows, removeWaSignalRow,
   pruneStaleWaSignalRows, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
 import {
   parseWatchlistRows, parseWatchlistRowsRaw, parseSheetDate, rankSignals, buildWaSignal, mergeSignalSources,
   parseWaMessageText,
 } from '../lib/scoring';
+import { sumRealizedPnl } from '../lib/pnl';
 import SignalCard from '../components/SignalCard';
 import SettingsSheet from '../components/SettingsSheet';
 import { formatRupiah, todayDDMMYYYY } from '../lib/format';
@@ -66,6 +68,8 @@ export default function SinyalPage() {
   const [error, setError] = useState(null);
   const [signals, setSignals] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [totalModal, setTotalModal] = useState(0);
+  const [modalHistory, setModalHistory] = useState([]);
   const [investedCapital, setInvestedCapital] = useState(0);
   const [usedSlots, setUsedSlots] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -114,7 +118,7 @@ export default function SinyalPage() {
         if (cancelled) return;
         setSheetId(resolvedSheetId);
         await ensureSheetsInitialized(token, resolvedSheetId);
-        const [rawRows, settingsData, journalSummary, waRaw] = await Promise.all([
+        const [rawRows, settingsData, journalSummary, journalEntries, modalHistoryData, waRaw] = await Promise.all([
           // Dibaca terus (lepas dari WATCHLIST_SHEET_ENABLED) karena sekarang
           // juga dipakai buat mencocokkan tanggal sinyal WA dengan tanggal
           // Watchlist-nya, bukan cuma sebagai sumber sinyal aktif.
@@ -123,6 +127,10 @@ export default function SinyalPage() {
           // Satu request buat count/journaledStocks/investedCapital sekaligus,
           // bukan 3 request terpisah ke range jurnal yang sama persis.
           getActiveJournalSummary(token, resolvedSheetId),
+          // Seluruh jurnal (bukan cuma yang aktif) - dipakai buat menjumlah
+          // P&L realized sepanjang waktu untuk Total Modal di bawah.
+          getJournalEntries(token, resolvedSheetId),
+          getModalHistory(token, resolvedSheetId),
           getWaSignalRows(token, resolvedSheetId),
         ]);
         if (cancelled) return;
@@ -130,6 +138,14 @@ export default function SinyalPage() {
         setSettings(settingsData);
         setInvestedCapital(invested);
         setUsedSlots(occupiedSlots);
+        setModalHistory(modalHistoryData);
+        // Total Modal = Modal Awal (settingsData.capital, sudah termasuk semua
+        // setor/tarik lewat "Tambah/Kurang Modal") +/- akumulasi untung/rugi
+        // realized dari SELURUH riwayat jurnal - bukan cuma yang lagi tampil
+        // di Rekapan. Dipakai sebagai basis MM/risk-per-trade di bawah, jadi
+        // ukuran posisi otomatis mengikuti modal yang sedang berjalan.
+        const computedTotalModal = settingsData.capital + sumRealizedPnl(journalEntries, settingsData);
+        setTotalModal(computedTotalModal);
         const parsed = WATCHLIST_SHEET_ENABLED
           ? parseWatchlistRows(rawRows, { entryMode: settingsData.entryMode, tpMode: settingsData.tpMode })
           : [];
@@ -179,11 +195,10 @@ export default function SinyalPage() {
             position: { rupiah: 0, lembar: 0 }, owned: journaled.has(s.stock.toUpperCase()),
           }));
 
-        const remainingCapital = Math.max(settingsData.capital - invested, 0);
+        const remainingCapital = Math.max(computedTotalModal - invested, 0);
         const ranked = rankSignals(rankable, {
-          capital: settingsData.capital, riskPercent: settingsData.riskPercent, remainingCapital,
+          capital: computedTotalModal, riskPercent: settingsData.riskPercent, remainingCapital,
           maxSlots: settingsData.maxSlots, occupiedSlots, journaledStocks: journaled,
-          maxPerStock: settingsData.maxPerStock,
         });
 
         pruneStaleDismissals();
@@ -325,6 +340,7 @@ export default function SinyalPage() {
         sl: Number(s.sl),
         tp1: Number(s.tp1),
         tp2: s.tp2 ? Number(s.tp2) : null,
+        mmPercent: s.mmPercent != null ? Number(s.mmPercent) : null,
         capturedAt: new Date().toISOString(),
         tag: s.tag || null,
       }));
@@ -343,18 +359,32 @@ export default function SinyalPage() {
   }
 
   async function saveSettings({
-    capital, riskPercent, maxSlots, maxPerStock,
+    capital, riskPercent, maxSlots,
     buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
     entryMode, tpMode,
   }) {
     setSettingsSaving(true);
     try {
       await updateSettings(token, sheetId, {
-        capital, riskPercent, maxSlots, maxPerStock,
+        capital, riskPercent, maxSlots,
         buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
         entryMode, tpMode,
       });
       setSettingsOpen(false);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
+  async function submitModalTransaction({ jumlah, keterangan }) {
+    setSettingsSaving(true);
+    try {
+      await addModalTransaction(token, sheetId, {
+        tanggal: todayDDMMYYYY(), jumlah, keterangan, currentCapital: settings.capital,
+      });
       setRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e.message);
@@ -418,6 +448,7 @@ export default function SinyalPage() {
       sl: s.sl,
       tp1: s.tp1,
       tp2: s.tp2,
+      mmPercent: s.mmPercent,
       capturedAt: s.capturedAt,
       tag: s.tag,
     }]);
@@ -436,7 +467,7 @@ export default function SinyalPage() {
     );
   }
 
-  const remainingCapital = settings ? Math.max(settings.capital - investedCapital, 0) : null;
+  const remainingCapital = settings ? Math.max(totalModal - investedCapital, 0) : null;
   // No date split anymore - a signal stays listed for as long as it's still
   // OPEN/valid in the sheet, not just on the day it was first published.
   // Not-skipped candidates first, then best score first.
@@ -536,7 +567,7 @@ export default function SinyalPage() {
               </div>
               <div className="sub-box">
                 <div className="sub-box-label">Total modal</div>
-                <div className="sub-box-value">{formatRupiah(settings.capital)}</div>
+                <div className="sub-box-value">{formatRupiah(totalModal)}</div>
               </div>
             </div>
           </>
@@ -551,7 +582,6 @@ export default function SinyalPage() {
         capital={settings ? settings.capital : 0}
         riskPercent={settings ? settings.riskPercent : 0.005}
         maxSlots={settings ? settings.maxSlots : 0}
-        maxPerStock={settings ? settings.maxPerStock : 0}
         buyFeePercent={settings ? settings.buyFeePercent : 0.0015}
         sellFeePercent={settings ? settings.sellFeePercent : 0.0025}
         materaiAmount={settings ? settings.materaiAmount : 10000}
@@ -560,6 +590,8 @@ export default function SinyalPage() {
         tpMode={settings ? settings.tpMode : 'mid'}
         onSave={saveSettings}
         saving={settingsSaving}
+        modalHistory={modalHistory}
+        onSubmitModalTransaction={submitModalTransaction}
       />
 
       <div className="wa-paste-zone-wrap">

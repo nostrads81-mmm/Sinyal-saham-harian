@@ -16,6 +16,7 @@ const WA_SIGNAL_SCHEMA = {
           sl: { type: 'number' },
           tp1: { type: 'number' },
           tp2: { type: 'number' },
+          mmPercent: { type: 'number' },
           confidence: { type: 'string', enum: ['high', 'low'] },
         },
         required: ['stock', 'tradeType', 'buyLow', 'buyHigh', 'sl', 'tp1', 'confidence'],
@@ -32,7 +33,7 @@ Gaya 1 (terstruktur, bisa lebih dari satu sinyal dalam satu pesan):
 "SL IF CLOSE < [harga]" atau "SL : [harga]"
 "TP 1 : [harga]"
 "TP 2 : [harga]" (kadang tertulis "TP 1" dua kali karena typo admin - baris kedua tetap perlakukan sebagai TP2 jika angkanya lebih tinggi dari TP1)
-"MM : [persen] EQUITY" (abaikan baris MM - tidak perlu diekstrak)
+"MM : [persen] EQUITY" ATAU "MONEY MANAGEMENT : MAX BUY [persen] DARI MODAL" - keduanya berarti sama, ekstrak angka persennya sebagai mmPercent
 
 Gaya 2 (kalimat naratif singkat, biasanya cuma satu sinyal per pesan), contoh:
 "INET offer bagus, retest demand di daily. maks buy 352. SL 340. TP 370."
@@ -54,6 +55,7 @@ Bisa ada lebih dari satu sinyal saham dalam satu screenshot/teks. Ekstrak semua 
 - buyLow, buyHigh: dari range harga beli (sama-sama diisi dengan angka yang sama kalau cuma ada satu harga beli, bukan range)
 - sl: harga stop loss (angka saja, abaikan kata "IF CLOSE <")
 - tp1, tp2: target profit (tp2 boleh dikosongkan kalau cuma ada satu TP)
+- mmPercent: angka persen MM/money management kalau disebutkan (boleh dikosongkan kalau tidak ada)
 - confidence: "low" kalau ada angka yang kurang yakin terbaca atau formatnya gaya 2 (naratif, kurang eksplisit), selain itu "high"
 
 Abaikan paragraf analisa teknikal panjang di bawahnya (alasan, kondisi chart, dll) - itu tidak perlu diekstrak, cukup data terstruktur di atas.`;
