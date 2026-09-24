@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getAccessToken, getStoredToken, signOut } from '../lib/auth';
+import { getAccessToken, resolveInitialToken, signOut } from '../lib/auth';
 import {
   getValues, appendValues, ensureSheetsInitialized, getOrCreateAppDataSheetId, getSettings, updateSettings,
   getActiveJournalSummary, getJournalEntries, getModalHistory, addModalTransaction,
@@ -64,6 +64,7 @@ function buildAiPrompt(signals) {
 
 export default function SinyalPage() {
   const [token, setToken] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [signals, setSignals] = useState([]);
@@ -94,7 +95,17 @@ export default function SinyalPage() {
   const [sheetId, setSheetId] = useState(null);
 
   useEffect(() => {
-    setToken(getStoredToken());
+    let cancelled = false;
+    // Tries the cached token first, then a silent (popup-free) sign-in if
+    // there isn't one - most returning visitors land straight in the app
+    // instead of hitting "Sign in dengan Google" again every time the
+    // cached token from last time has expired.
+    resolveInitialToken().then((t) => {
+      if (cancelled) return;
+      setToken(t);
+      setCheckingAuth(false);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   async function handleSignIn() {
@@ -456,6 +467,14 @@ export default function SinyalPage() {
   }
 
   if (!token) {
+    if (checkingAuth) {
+      return (
+        <div className="center-box">
+          <div className="login-icon">📈</div>
+          <p className="muted">Memeriksa sesi Google...</p>
+        </div>
+      );
+    }
     return (
       <div className="center-box">
         <div className="login-icon">📈</div>

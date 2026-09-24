@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getAccessToken, getStoredToken } from '../lib/auth';
+import { getAccessToken, resolveInitialToken } from '../lib/auth';
 import {
   getJournalEntries, closeJournalEntry, confirmJournalFill, deleteJournalRow, getSettings, updateSettings,
   ensureSheetsInitialized, getOrCreateAppDataSheetId,
@@ -22,6 +22,7 @@ const STATUS_BADGE = {
 
 export default function RekapanPage() {
   const [token, setToken] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -59,7 +60,13 @@ export default function RekapanPage() {
   const [sheetId, setSheetId] = useState(null);
 
   useEffect(() => {
-    setToken(getStoredToken());
+    let cancelled = false;
+    resolveInitialToken().then((t) => {
+      if (cancelled) return;
+      setToken(t);
+      setCheckingAuth(false);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   async function handleSignIn() {
@@ -202,6 +209,14 @@ export default function RekapanPage() {
   }
 
   if (!token) {
+    if (checkingAuth) {
+      return (
+        <div className="center-box">
+          <div className="login-icon">📈</div>
+          <p className="muted">Memeriksa sesi Google...</p>
+        </div>
+      );
+    }
     return (
       <div className="center-box">
         <div className="login-icon">📈</div>

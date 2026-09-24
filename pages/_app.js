@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import Head from 'next/head';
 import { Inter } from 'next/font/google';
 import BottomNav from '../components/BottomNav';
+import UpdateFab from '../components/UpdateFab';
 import {
   applyTheme, getStoredTheme, applyTextScale, getStoredTextScale, applyBold, getStoredBold,
 } from '../lib/theme';
@@ -30,6 +31,7 @@ export default function App({ Component, pageProps }) {
         <main className="app-main">
           <Component {...pageProps} />
         </main>
+        <UpdateFab />
         <BottomNav />
       </div>
     </>
