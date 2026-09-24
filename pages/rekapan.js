@@ -181,14 +181,14 @@ export default function RekapanPage() {
   // Pengaturan panel on both tabs, so it must not quietly drop the settings
   // only Sinyal used to write (risiko per trade, basis entry, tampilan TP).
   async function saveSettings({
-    capital, riskPercent, maxSlots, maxPerStock,
+    capital, riskPercent, maxSlots,
     buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
     entryMode, tpMode,
   }) {
     setSettingsSaving(true);
     try {
       await updateSettings(token, sheetId, {
-        capital, riskPercent, maxSlots, maxPerStock,
+        capital, riskPercent, maxSlots,
         buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
         entryMode, tpMode,
       });
@@ -259,7 +259,6 @@ export default function RekapanPage() {
         capital={settings ? settings.capital : 0}
         riskPercent={settings ? settings.riskPercent : 0.005}
         maxSlots={settings ? settings.maxSlots : 0}
-        maxPerStock={settings ? settings.maxPerStock : 0}
         buyFeePercent={settings ? settings.buyFeePercent : 0.0015}
         sellFeePercent={settings ? settings.sellFeePercent : 0.0025}
         materaiAmount={settings ? settings.materaiAmount : 10000}

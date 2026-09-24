@@ -320,8 +320,8 @@ export default function SignalCard({
               </div>
               {s.adjusted && (
                 <span className="pb-note">
-                  {s.capReason === 'maks-saham'
-                    ? `⚠ Lot dibatasi maks ${formatRupiahRingkas(s.capRupiah)} per saham`
+                  {s.capReason === 'mm'
+                    ? `⚠ Lot dibatasi MM maks ${formatRupiahRingkas(s.capRupiah)}`
                     : '⚠ Lot dikurangi dari saran normal, disesuaikan sisa modal'}
                 </span>
               )}

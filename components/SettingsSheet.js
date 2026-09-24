@@ -45,14 +45,14 @@ function riskDisplayToFraction(display) {
 }
 
 export default function SettingsSheet({
-  open, onClose, capital, riskPercent, maxSlots, maxPerStock,
+  open, onClose, capital, riskPercent, maxSlots,
   buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
   entryMode, tpMode, onSave, saving,
+  modalHistory, onSubmitModalTransaction,
 }) {
   const [capitalInput, setCapitalInput] = useState(String(capital));
   const [riskInput, setRiskInput] = useState(riskFractionToDisplay(riskPercent));
   const [slotsInput, setSlotsInput] = useState(String(maxSlots));
-  const [maxPerStockInput, setMaxPerStockInput] = useState(maxPerStock ? String(maxPerStock) : '');
   const [buyFeeInput, setBuyFeeInput] = useState(riskFractionToDisplay(buyFeePercent));
   const [sellFeeInput, setSellFeeInput] = useState(riskFractionToDisplay(sellFeePercent));
   const [materaiInput, setMateraiInput] = useState(String(materaiAmount));
@@ -62,13 +62,15 @@ export default function SettingsSheet({
   const [theme, setTheme] = useState('dark');
   const [textScale, setTextScale] = useState('normal');
   const [bold, setBold] = useState(false);
+  const [modalTxJumlah, setModalTxJumlah] = useState('');
+  const [modalTxKeterangan, setModalTxKeterangan] = useState('');
+  const [modalTxSaving, setModalTxSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setCapitalInput(String(capital));
       setRiskInput(riskFractionToDisplay(riskPercent));
       setSlotsInput(String(maxSlots));
-      setMaxPerStockInput(maxPerStock ? String(maxPerStock) : '');
       setBuyFeeInput(riskFractionToDisplay(buyFeePercent));
       setSellFeeInput(riskFractionToDisplay(sellFeePercent));
       setMateraiInput(String(materaiAmount));
@@ -80,17 +82,24 @@ export default function SettingsSheet({
       setBold(getStoredBold());
     }
   }, [
-    open, capital, riskPercent, maxSlots, maxPerStock,
+    open, capital, riskPercent, maxSlots,
     buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold, entryMode, tpMode,
   ]);
 
   if (!open) return null;
 
-  // What "otomatis" would be right now, shown as a hint so the effect of leaving
-  // the field empty is visible before saving.
-  const autoPerStock = Number(capitalInput) > 0 && Number(slotsInput) > 0
-    ? Number(capitalInput) / Number(slotsInput)
-    : null;
+  async function submitModalTransaction(sign) {
+    const amount = Number(modalTxJumlah);
+    if (!amount || amount <= 0) return;
+    setModalTxSaving(true);
+    try {
+      await onSubmitModalTransaction({ jumlah: amount * sign, keterangan: modalTxKeterangan });
+      setModalTxJumlah('');
+      setModalTxKeterangan('');
+    } finally {
+      setModalTxSaving(false);
+    }
+  }
 
   function chooseTheme(next) {
     setTheme(next);
@@ -122,13 +131,64 @@ export default function SettingsSheet({
         <div className="settings-section">
           <p className="settings-section-title">💰 Modal &amp; Risiko</p>
           <div className="field">
-            <label className="field-label">Modal</label>
+            <label className="field-label">Modal Awal</label>
             <input
               type="number"
               value={capitalInput}
               onChange={(e) => setCapitalInput(e.target.value)}
             />
+            <p className="field-hint">
+              Total Modal yang dipakai untuk hitung ukuran posisi otomatis mengikuti Modal Awal ini
+              ditambah/dikurangi untung-rugi dari Rekapan - tidak perlu diedit manual tiap ada trade selesai.
+            </p>
           </div>
+
+          {onSubmitModalTransaction && (
+            <div className="field">
+              <label className="field-label">Tambah/Kurang Modal</label>
+              <input
+                type="number"
+                placeholder="Nominal (mis. 5000000)"
+                value={modalTxJumlah}
+                onChange={(e) => setModalTxJumlah(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Keterangan (opsional)"
+                value={modalTxKeterangan}
+                onChange={(e) => setModalTxKeterangan(e.target.value)}
+                style={{ marginTop: 6 }}
+              />
+              <div className="sheet-actions" style={{ marginTop: 6 }}>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={modalTxSaving || saving}
+                  onClick={() => submitModalTransaction(-1)}
+                >
+                  Tarik modal
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={modalTxSaving || saving}
+                  onClick={() => submitModalTransaction(1)}
+                >
+                  Tambah modal
+                </button>
+              </div>
+              {modalHistory && modalHistory.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  {[...modalHistory].reverse().slice(0, 5).map((h) => (
+                    <p key={h.rowNumber} className="field-hint" style={{ margin: '2px 0' }}>
+                      {h.tanggal} &middot; {h.jumlah >= 0 ? '+' : ''}{formatRupiahRingkas(h.jumlah)}
+                      {h.keterangan ? ` - ${h.keterangan}` : ''}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="field">
             <label className="field-label">Risiko per trade (%)</label>
@@ -152,23 +212,6 @@ export default function SettingsSheet({
               value={slotsInput}
               onChange={(e) => setSlotsInput(e.target.value)}
             />
-          </div>
-
-          <div className="field">
-            <label className="field-label">Maks per saham (Rp)</label>
-            <input
-              type="number"
-              min="0"
-              inputMode="numeric"
-              placeholder="otomatis"
-              value={maxPerStockInput}
-              onChange={(e) => setMaxPerStockInput(e.target.value)}
-            />
-            <p className="field-hint">
-              Batas belanja untuk satu saham. Kosongkan untuk otomatis: <strong>modal ÷ jumlah slot</strong>
-              {autoPerStock !== null ? ` (sekarang ${formatRupiahRingkas(autoPerStock)})` : ''}.
-              Ukuran posisi tetap dihitung dari rumus risiko, ini hanya plafonnya.
-            </p>
           </div>
 
           <div className="field">
@@ -334,9 +377,6 @@ export default function SettingsSheet({
               capital: Number(capitalInput) || capital,
               riskPercent: riskDisplayToFraction(riskInput) ?? riskPercent,
               maxSlots: Number(slotsInput) || maxSlots,
-              // Empty means "automatic: modal / jumlah slot" - 0 is stored, and
-              // lib/scoring.js reads 0 as "use the even share".
-              maxPerStock: Number(maxPerStockInput) || 0,
               buyFeePercent: riskDisplayToFraction(buyFeeInput) ?? buyFeePercent,
               sellFeePercent: riskDisplayToFraction(sellFeeInput) ?? sellFeePercent,
               materaiAmount: Number(materaiInput) || materaiAmount,
