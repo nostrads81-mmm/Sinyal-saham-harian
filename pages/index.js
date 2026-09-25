@@ -541,6 +541,10 @@ export default function SinyalPage() {
                 <p className="muted" style={{ marginBottom: 4 }}>TP2 (opsional)</p>
                 <input type="number" value={s.tp2 || ''} onChange={(e) => updateWaReviewField(i, 'tp2', e.target.value)} />
               </div>
+              <div>
+                <p className="muted" style={{ marginBottom: 4 }}>MM (%)</p>
+                <input type="number" value={s.mm || ''} onChange={(e) => updateWaReviewField(i, 'mm', e.target.value)} />
+              </div>
             </div>
           </div>
         ))}
