@@ -1,4 +1,5 @@
 import { computeTpMid } from '../lib/scoring';
+import { formatRupiahRingkas } from '../lib/format';
 import TradingViewQuote from './TradingViewQuote';
 import TradingViewButton from './TradingViewButton';
 
@@ -51,6 +52,19 @@ export default function PositionCard({
           <div className="metric-value text-success">{tpValue != null ? tpValue.toLocaleString('id-ID') : '-'}</div>
         </div>
       </div>
+
+      {/* "How much did/does this cost" - same short form as the Sinyal card,
+          so an open position reads the same way whether it's still a
+          proposal or already bought. */}
+      {e.entry != null && lot > 0 && (
+        <div className="pos-line">
+          <span className="muted">Beli</span>
+          <span className="pos-line-value">
+            {formatRupiahRingkas(e.entry * lot * 100)}
+            <span className="muted"> · {lot} lot</span>
+          </span>
+        </div>
+      )}
 
       <div className="card-actions">
         {isPending && !ui.confirming && (
