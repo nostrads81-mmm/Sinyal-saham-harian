@@ -822,6 +822,22 @@ textarea:focus, input:focus {
 
 .card-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 
+/* The repeating action button on every open position/signal card ("Tutup
+   posisi", "Konfirmasi fill", "Catat order") was reading as an oversized,
+   attention-grabbing gold slab once there were several cards stacked in a
+   list - each one competing for the eye instead of just being "the thing
+   you tap when you're ready". Softer fill + smaller type here only, so a
+   one-off primary action elsewhere (e.g. "Simpan" in a form) can stay bold. */
+.card-actions .btn-primary {
+  background: var(--badge-bg);
+  border-color: var(--badge-border);
+  color: var(--badge-ink);
+  font-weight: calc(600 + var(--fw-boost));
+  font-size: calc(12.5px * var(--text-scale));
+  box-shadow: none;
+}
+.card-actions .btn-primary:hover { border-color: var(--accent); }
+
 /* Menu behind the ⋯ button: skip, chart and hapus live here so they can't be
    hit while reaching for "copy". */
 .signal-menu {
