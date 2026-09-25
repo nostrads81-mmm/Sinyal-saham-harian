@@ -47,7 +47,7 @@ export default function SignalCard({
   const [recordOpen, setRecordOpen] = useState(false);
   const [recordPrice, setRecordPrice] = useState('');
   const [recordLot, setRecordLot] = useState('');
-  const [recordFilled, setRecordFilled] = useState(true);
+  const [recordFilled, setRecordFilled] = useState(false);
   const [recordSaving, setRecordSaving] = useState(false);
   const [recordError, setRecordError] = useState(null);
   const [entryEdit, setEntryEdit] = useState(false);
