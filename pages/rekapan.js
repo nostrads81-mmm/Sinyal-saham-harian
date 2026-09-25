@@ -263,7 +263,12 @@ export default function RekapanPage() {
           <h1 className="page-title">Rekapan</h1>
           <p className="page-sub">Jurnal day trade &middot; P&amp;L sudah dikurangi fee &amp; materai</p>
         </div>
-        <button className="btn icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Pengaturan">
+        <button
+          className="btn icon-btn"
+          onClick={() => setSettingsOpen(true)}
+          disabled={!settings}
+          aria-label="Pengaturan"
+        >
           &#9881;
         </button>
       </div>

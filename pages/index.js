@@ -570,7 +570,12 @@ export default function SinyalPage() {
       <div className="page-header">
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <h1 className="page-title">Sinyal Saham Harian</h1>
-          <button className="btn icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Pengaturan">
+          <button
+            className="btn icon-btn"
+            onClick={() => setSettingsOpen(true)}
+            disabled={!settings}
+            aria-label="Pengaturan"
+          >
             &#9881;
           </button>
         </div>
