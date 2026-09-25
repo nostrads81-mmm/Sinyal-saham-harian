@@ -18,8 +18,11 @@
   --danger-bg: #351a20;
   --warning: #ffcf72;
   --warning-bg: #332510;
-  --radius: 16px;
-  --radius-sm: 11px;
+  /* Bigger radii than before on purpose - rounder corners read as friendlier
+     and less "terminal-serious" than the old sharper 16px/11px, matching
+     the softer redesign brief (Comic Neue font, roomier cards). */
+  --radius: 22px;
+  --radius-sm: 14px;
   --nav-bg: rgba(15, 18, 25, 0.94);
   --badge-bg: rgba(232, 176, 75, 0.16);
   --badge-ink: #f4c877;
@@ -93,7 +96,7 @@ a { color: inherit; text-decoration: none; }
     var(--bg);
   /* Inter (set via next/font on this element, see pages/_app.js) with the
      system-font stack as fallback while it loads / if it fails. */
-  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-app), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .app-main {
@@ -263,10 +266,12 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface-2);
   color: var(--text);
   border-radius: var(--radius-sm);
-  padding: 9px 14px;
-  /* 44px is the smallest comfortable tap target on a phone; the buttons in the
-     cards are the ones actually hit with a thumb while watching the market. */
-  min-height: 44px;
+  padding: 7px 14px;
+  /* Trimmed from the old 44px - still a comfortable thumb target, but the
+     full-width action buttons ("Tutup posisi" etc.) were reading as
+     oversized slabs at 44px, especially now that cards have more breathing
+     room around them from the wider card gap. */
+  min-height: 38px;
   font-size: calc(13px * var(--text-scale));
   font-weight: calc(600 + var(--fw-boost));
   cursor: pointer;

@@ -569,7 +569,10 @@ export default function SinyalPage() {
     <div>
       <div className="page-header">
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
-          <h1 className="page-title">Sinyal Saham Harian</h1>
+          <div>
+            <h1 className="page-title">Sinyal Saham Harian</h1>
+            <p className="page-sub">Halo! 👋 Cek sinyal hari ini, santai aja.</p>
+          </div>
           <button
             className="btn icon-btn"
             onClick={() => setSettingsOpen(true)}
@@ -646,7 +649,7 @@ export default function SinyalPage() {
         <p className="muted">Belum ada sinyal baru hari ini.</p>
       )}
 
-      <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>Day Trade</p>
+      <p style={{ marginTop: 8, marginBottom: 8, fontWeight: 700 }}>⚡ Day Trade</p>
       {dayTradeSignals.length === 0 && <p className="muted">Belum ada sinyal day trade hari ini.</p>}
       {dayTradeSignals.map((s, i) => (
         <SignalCard
@@ -664,7 +667,7 @@ export default function SinyalPage() {
         />
       ))}
 
-      <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Swing Trade</p>
+      <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 700 }}>📈 Swing Trade</p>
       {swingTradeSignals.length === 0 && <p className="muted">Belum ada sinyal swing trade hari ini.</p>}
       {swingTradeSignals.map((s, i) => (
         <SignalCard
