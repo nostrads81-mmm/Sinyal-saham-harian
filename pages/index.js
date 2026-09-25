@@ -543,7 +543,7 @@ export default function SinyalPage() {
               </div>
               <div>
                 <p className="muted" style={{ marginBottom: 4 }}>MM (%)</p>
-                <input type="number" value={s.mm || ''} onChange={(e) => updateWaReviewField(i, 'mm', e.target.value)} />
+                <input type="number" value={s.mmPercent ?? ''} onChange={(e) => updateWaReviewField(i, 'mmPercent', e.target.value)} />
               </div>
             </div>
           </div>
