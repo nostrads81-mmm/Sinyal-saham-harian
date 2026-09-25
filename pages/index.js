@@ -571,7 +571,7 @@ export default function SinyalPage() {
         <div className="card-row" style={{ alignItems: 'flex-start' }}>
           <div>
             <h1 className="page-title">Sinyal Saham Harian</h1>
-            <p className="page-sub">Halo! 👋 Cek sinyal hari ini, santai aja.</p>
+            <p className="page-sub">Halo! 👋 Cek sinyal hari ini, semangat cari cuan!</p>
           </div>
           <button
             className="btn icon-btn"
