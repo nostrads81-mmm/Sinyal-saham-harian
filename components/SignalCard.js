@@ -62,7 +62,7 @@ export default function SignalCard({
   function openRecordForm() {
     setRecordPrice(String(s.entry));
     setRecordLot(pos ? String(Math.round(pos.lembar / 100)) : '');
-    setRecordFilled(true);
+    setRecordFilled(false);
     setRecordError(null);
     setRecordOpen(true);
     setMenuOpen(false);
