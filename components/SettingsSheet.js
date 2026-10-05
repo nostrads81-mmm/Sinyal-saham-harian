@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { formatRupiahRingkas } from '../lib/format';
 import {
   getStoredTheme, setStoredTheme, getStoredTextScale, setStoredTextScale, getStoredBold, setStoredBold,
@@ -116,7 +117,13 @@ export default function SettingsSheet({
     setStoredBold(next);
   }
 
-  return (
+  // Rendered via portal straight onto document.body instead of inline where
+  // SettingsSheet is called from (inside .app-main, the scrollable region) -
+  // some mobile WebViews don't let position:fixed truly escape an
+  // overflow:auto ancestor, so the sheet backdrop was getting trapped
+  // inside .app-main and ending up BEHIND the bottom nav (a sibling of
+  // .app-main, outside it) instead of covering it like a modal should.
+  return createPortal(
     <div className="sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet">
         <div className="sheet-handle" />
@@ -389,6 +396,7 @@ export default function SettingsSheet({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
