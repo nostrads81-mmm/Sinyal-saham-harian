@@ -69,13 +69,18 @@ html[data-theme="light"] {
   --badge-border: rgba(20, 184, 166, 0.3);
 }
 
-html, body {
+html, body, #__next {
   margin: 0;
   padding: 0;
   /* The page itself no longer scrolls - see .app-shell/.app-main below for
      why. Fixes position:fixed (bottom nav, the refresh FAB) visibly
      drifting with the scroll instead of staying pinned, a quirk some
-     mobile WebViews have with position:fixed on a scrolling document. */
+     mobile WebViews have with position:fixed on a scrolling document.
+     #__next (Next.js's root div, wrapping .app-shell) has to carry the
+     same height:100% too - without it the chain breaks there, .app-shell
+     ends up as tall as its content instead of the viewport, and that
+     overflow just gets clipped by body's overflow:hidden with no way to
+     scroll to it at all. */
   height: 100%;
   overflow: hidden;
   background: var(--bg);
