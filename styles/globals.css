@@ -632,7 +632,9 @@ textarea:focus, input:focus {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 50;
+  /* Well above the refresh FAB (z-index 30) - the modal must always win,
+     not float a floating button on top of its own "Simpan"/footer area. */
+  z-index: 100;
 }
 
 .sheet {
