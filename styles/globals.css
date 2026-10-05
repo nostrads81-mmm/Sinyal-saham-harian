@@ -202,16 +202,18 @@ a { color: inherit; text-decoration: none; }
 .nav-label { font-weight: calc(600 + var(--fw-boost)); }
 
 .page-header {
-  /* Stays put while the card list scrolls underneath it, instead of
-     scrolling away with the rest of the page. Negative side margins cancel
-     .app-main's own padding so the sticky background reaches edge-to-edge
-     (otherwise a 16px strip of scrolling content would peek out on each
-     side while it's stuck). Top padding adds the safe-area inset on top of
-     the original 20px gap, so on a notched phone the title sits clear of
-     the status bar once stuck at the very top instead of sliding under it. */
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  /* Used to be position:sticky (stays put while the list scrolls under
+     it), but some mobile WebViews don't keep sticky positioning stable
+     inside an overflow:auto flex container (.app-main) - the header ended
+     up sitting below a transparent gap with a card peeking through it,
+     persistently, not just during scroll. Scrolls away with the rest of
+     the page now instead, trading the "always visible" header for a
+     layout that's actually reliable everywhere. Negative side margins
+     still cancel .app-main's own padding so the header's background
+     reaches edge-to-edge instead of leaving a 16px strip of page
+     background on each side. Top padding adds the safe-area inset on top
+     of the original 20px gap, so on a notched phone the title sits clear
+     of the status bar. */
   margin: calc(-20px * var(--ui-scale)) calc(-16px * var(--ui-scale)) calc(16px * var(--ui-scale));
   padding: calc(20px * var(--ui-scale) + env(safe-area-inset-top, 0px)) calc(16px * var(--ui-scale)) calc(14px * var(--ui-scale));
   background: var(--bg);
