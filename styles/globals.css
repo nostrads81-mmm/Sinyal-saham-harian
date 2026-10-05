@@ -20,9 +20,11 @@
   --warning-bg: #332510;
   /* Bigger radii than before on purpose - rounder corners read as friendlier
      and less "terminal-serious" than the old sharper 16px/11px, matching
-     the softer redesign brief (Comic Neue font, roomier cards). */
-  --radius: 22px;
-  --radius-sm: 14px;
+     the softer redesign brief (Comic Neue font, roomier cards). Routed
+     through --ui-scale like every other spacing value below, so they
+     shrink along with everything else on a tablet (see --ui-scale). */
+  --radius: calc(22px * var(--ui-scale));
+  --radius-sm: calc(14px * var(--ui-scale));
   --nav-bg: rgba(15, 18, 25, 0.94);
   --badge-bg: rgba(232, 176, 75, 0.16);
   --badge-ink: #f4c877;
@@ -43,6 +45,14 @@
      same everywhere calc() is supported. */
   --text-scale: 1;
   --fw-boost: 0;
+  /* Layout scale - padding, gaps, border-radius and fixed box widths/heights
+     (everything that ISN'T a font-size) all route through this. Set
+     device-side only (see lib/theme.js's applyUiScale, same tablet
+     pixel-density check as the text-scale shrink) - not a user preference
+     like the two above, since shrinking tap targets is only meant to
+     correct for a bigger/lower-density screen, not something to expose as
+     a slider. Default 1 = untouched on phones. */
+  --ui-scale: 1;
 }
 
 html[data-theme="light"] {
@@ -125,7 +135,7 @@ a { color: inherit; text-decoration: none; }
      like they did under plain block layout - this only exists so a
      flex:1 child (.center-box, the login screen) can actually center
      itself vertically in the remaining viewport height. */
-  padding: 20px 16px 24px;
+  padding: calc(20px * var(--ui-scale)) calc(16px * var(--ui-scale)) calc(24px * var(--ui-scale));
 }
 
 .bottom-nav {
@@ -135,17 +145,17 @@ a { color: inherit; text-decoration: none; }
      height instead of stretching, since .app-shell is a column flex. */
   flex-shrink: 0;
   display: flex;
-  gap: 4px;
+  gap: calc(4px * var(--ui-scale));
   background: var(--nav-bg);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--border);
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0));
+  padding: calc(6px * var(--ui-scale)) calc(8px * var(--ui-scale)) calc(6px * var(--ui-scale) + env(safe-area-inset-bottom, 0));
 }
 
 .nav-item {
   flex: 1;
   text-align: center;
-  padding: 8px 0;
+  padding: calc(8px * var(--ui-scale)) 0;
   color: var(--text-faint);
   font-size: calc(11px * var(--text-scale));
   border-radius: var(--radius-sm);
@@ -159,11 +169,11 @@ a { color: inherit; text-decoration: none; }
    phone widths this app is actually used at. */
 .update-fab {
   position: absolute;
-  right: 16px;
-  bottom: calc(78px + env(safe-area-inset-bottom, 0));
+  right: calc(16px * var(--ui-scale));
+  bottom: calc(78px * var(--ui-scale) + env(safe-area-inset-bottom, 0));
   z-index: 30;
-  width: 44px;
-  height: 44px;
+  width: calc(44px * var(--ui-scale));
+  height: calc(44px * var(--ui-scale));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -172,7 +182,7 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--border);
   color: var(--text-muted);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
-  font-size: 20px;
+  font-size: calc(20px * var(--ui-scale));
   cursor: pointer;
 }
 
@@ -202,8 +212,8 @@ a { color: inherit; text-decoration: none; }
   position: sticky;
   top: 0;
   z-index: 20;
-  margin: -20px -16px 16px;
-  padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 14px;
+  margin: calc(-20px * var(--ui-scale)) calc(-16px * var(--ui-scale)) calc(16px * var(--ui-scale));
+  padding: calc(20px * var(--ui-scale) + env(safe-area-inset-top, 0px)) calc(16px * var(--ui-scale)) calc(14px * var(--ui-scale));
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
@@ -219,8 +229,8 @@ a { color: inherit; text-decoration: none; }
   justify-content: space-between;
   align-items: flex-end;
   flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 14px;
+  gap: calc(6px * var(--ui-scale)) calc(10px * var(--ui-scale));
+  margin-top: calc(14px * var(--ui-scale));
 }
 .hero-label {
   font-size: calc(11px * var(--text-scale));
@@ -241,7 +251,7 @@ a { color: inherit; text-decoration: none; }
 .slot-pill {
   font-size: calc(11px * var(--text-scale));
   font-weight: calc(700 + var(--fw-boost));
-  padding: 4px 10px;
+  padding: calc(4px * var(--ui-scale)) calc(10px * var(--ui-scale));
   border-radius: 999px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -252,8 +262,8 @@ a { color: inherit; text-decoration: none; }
    together as plain text - easier to scan as two distinct figures. */
 .sub-boxes {
   display: flex;
-  gap: 8px;
-  margin-top: 12px;
+  gap: calc(8px * var(--ui-scale));
+  margin-top: calc(12px * var(--ui-scale));
 }
 .sub-box {
   flex: 1;
@@ -261,7 +271,7 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
+  padding: calc(8px * var(--ui-scale)) calc(10px * var(--ui-scale));
 }
 .sub-box-label {
   font-size: calc(9.5px * var(--text-scale));
@@ -283,12 +293,12 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface-2);
   color: var(--text);
   border-radius: var(--radius-sm);
-  padding: 7px 14px;
+  padding: calc(7px * var(--ui-scale)) calc(14px * var(--ui-scale));
   /* Trimmed from the old 44px - still a comfortable thumb target, but the
      full-width action buttons ("Tutup posisi" etc.) were reading as
      oversized slabs at 44px, especially now that cards have more breathing
      room around them from the wider card gap. */
-  min-height: 38px;
+  min-height: calc(38px * var(--ui-scale));
   font-size: calc(13px * var(--text-scale));
   font-weight: calc(600 + var(--fw-boost));
   cursor: pointer;
@@ -309,10 +319,10 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 15px;
+  padding: calc(15px * var(--ui-scale));
   /* Wider gap than the old 11px so each card reads as its own separate
      unit at a glance, instead of the list blurring into one long column. */
-  margin-bottom: 22px;
+  margin-bottom: calc(22px * var(--ui-scale));
   position: relative;
   /* Layered shadow (not just the old inset highlight) for a lifted, 3D
      feel - a soft top highlight plus a tight contact shadow and a wider
@@ -335,9 +345,9 @@ a { color: inherit; text-decoration: none; }
   content: "";
   position: absolute;
   left: 0;
-  top: 14px;
-  bottom: 14px;
-  width: 3px;
+  top: calc(14px * var(--ui-scale));
+  bottom: calc(14px * var(--ui-scale));
+  width: calc(3px * var(--ui-scale));
   border-radius: 3px;
   background: linear-gradient(180deg, var(--accent), var(--accent-strong));
 }
@@ -347,7 +357,7 @@ a { color: inherit; text-decoration: none; }
 .badge {
   font-size: calc(11.5px * var(--text-scale));
   font-weight: calc(700 + var(--fw-boost));
-  padding: 4px 10px;
+  padding: calc(4px * var(--ui-scale)) calc(10px * var(--ui-scale));
   border-radius: 999px;
   background: var(--badge-bg);
   color: var(--badge-ink);
@@ -361,7 +371,7 @@ a { color: inherit; text-decoration: none; }
    on Watchlist) - shouldn't compete visually with the main status badge. */
 .badge-sm {
   font-size: calc(10px * var(--text-scale));
-  padding: 2px 8px;
+  padding: calc(2px * var(--ui-scale)) calc(8px * var(--ui-scale));
 }
 
 /* Score shown as a solid gold coin (number + label stacked) instead of a
@@ -372,8 +382,8 @@ a { color: inherit; text-decoration: none; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
+  width: calc(46px * var(--ui-scale));
+  height: calc(46px * var(--ui-scale));
   border-radius: 50%;
   flex-shrink: 0;
   background: radial-gradient(circle at 32% 28%, var(--score-gold-light), var(--score-gold-mid) 55%, var(--score-gold-dark) 100%);
@@ -410,12 +420,12 @@ a { color: inherit; text-decoration: none; }
    prices (see renderCard), this just styles the pieces. */
 .range-bar {
   position: relative;
-  height: 6px;
+  height: calc(6px * var(--ui-scale));
   border-radius: 4px;
   background: var(--surface-2);
   overflow: hidden;
   display: flex;
-  margin-top: 13px;
+  margin-top: calc(13px * var(--ui-scale));
 }
 .range-seg { height: 100%; }
 .range-seg.sl { background: var(--danger); }
@@ -424,16 +434,16 @@ a { color: inherit; text-decoration: none; }
 .range-seg.tp-beyond { background: var(--success); opacity: 0.32; }
 .range-marker {
   position: absolute;
-  top: -4px;
-  width: 2px;
-  height: 14px;
+  top: calc(-4px * var(--ui-scale));
+  width: calc(2px * var(--ui-scale));
+  height: calc(14px * var(--ui-scale));
   background: var(--text);
   border-radius: 1px;
 }
 .range-labels {
   display: flex;
-  margin-top: 8px;
-  gap: 4px;
+  margin-top: calc(8px * var(--ui-scale));
+  gap: calc(4px * var(--ui-scale));
 }
 .range-label { flex: 1; min-width: 0; text-align: center; }
 .range-label:first-child { text-align: left; }
@@ -453,8 +463,8 @@ a { color: inherit; text-decoration: none; }
 .metric-sub { font-size: calc(10.5px * var(--text-scale)); font-weight: calc(600 + var(--fw-boost)); margin-top: 2px; }
 
 .position-box {
-  margin-top: 10px;
-  padding: 11px 13px;
+  margin-top: calc(10px * var(--ui-scale));
+  padding: calc(11px * var(--ui-scale)) calc(13px * var(--ui-scale));
   border-radius: var(--radius-sm);
   background: var(--badge-bg);
   border: 1px solid var(--badge-border);
@@ -464,7 +474,7 @@ a { color: inherit; text-decoration: none; }
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 8px;
+  gap: calc(4px * var(--ui-scale)) calc(8px * var(--ui-scale));
 }
 /* Adjustment note (lot capped by remaining capital) goes on its own line
    below the amount+lot row, inside the same box - it's a secondary caveat,
@@ -474,16 +484,16 @@ a { color: inherit; text-decoration: none; }
   font-size: calc(11px * var(--text-scale));
   font-weight: calc(600 + var(--fw-boost));
   color: var(--warning);
-  margin-top: 6px;
+  margin-top: calc(6px * var(--ui-scale));
 }
 
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(10px * var(--ui-scale)); margin-bottom: calc(16px * var(--ui-scale)); }
 .stat-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
 .stat-tile {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 12px;
+  padding: calc(12px * var(--ui-scale));
 }
 .stat-label { font-size: calc(12px * var(--text-scale)); color: var(--text-muted); font-weight: calc(500 + var(--fw-boost)); }
 .stat-value { font-size: calc(20px * var(--text-scale)); font-weight: calc(800 + var(--fw-boost)); margin-top: 3px; letter-spacing: -0.01em; }
@@ -495,12 +505,12 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 32px 24px;
+  padding: calc(32px * var(--ui-scale)) calc(24px * var(--ui-scale));
   color: var(--text-muted);
 }
 .login-icon {
-  width: 64px;
-  height: 64px;
+  width: calc(64px * var(--ui-scale));
+  height: calc(64px * var(--ui-scale));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -510,7 +520,7 @@ a { color: inherit; text-decoration: none; }
      the app's one fixed "brand mark" color instead of inventing another. */
   background: radial-gradient(circle at 32% 28%, var(--score-gold-light), var(--score-gold-mid) 55%, var(--score-gold-dark) 100%);
   box-shadow: 0 0 0 1px var(--score-gold-ring), 0 8px 20px rgba(0, 0, 0, 0.25);
-  margin-bottom: 18px;
+  margin-bottom: calc(18px * var(--ui-scale));
 }
 .login-title {
   font-size: calc(22px * var(--text-scale));
@@ -526,27 +536,28 @@ a { color: inherit; text-decoration: none; }
   max-width: 280px;
   line-height: 1.5;
 }
-.login-btn { padding: 12px 28px; font-size: calc(14px * var(--text-scale)); }
+.login-btn { padding: calc(12px * var(--ui-scale)) calc(28px * var(--ui-scale)); font-size: calc(14px * var(--text-scale)); }
 
 .wa-paste-zone-wrap {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: calc(12px * var(--ui-scale));
 }
 .wa-paste-zone {
   background: var(--surface);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 13px 14px;
+  padding: calc(13px * var(--ui-scale)) calc(14px * var(--ui-scale));
   color: var(--text-faint);
   /* Never go below 16px on a focusable/editable element - iOS Safari
      auto-zooms the whole page on focus when the computed font-size is
      smaller than that, and in PWA/standalone mode it can get stuck zoomed
      in instead of resetting on blur. Deliberately NOT scaled by
-     --text-scale (unlike other font-size rules) so it can't drop below
-     that floor even when the user picks the "Kecil" text size. */
+     --text-scale/--ui-scale (unlike other font-size rules) so it can't
+     drop below that floor even when the user picks a smaller text size or
+     on a tablet. */
   font-size: 16px;
   outline: none;
-  min-height: 18px;
+  min-height: calc(18px * var(--ui-scale));
   text-align: center;
   transition: border-color 0.15s ease;
 }
@@ -561,7 +572,7 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 13px 14px;
+  padding: calc(13px * var(--ui-scale)) calc(14px * var(--ui-scale));
   font-size: 16px;
   font-weight: 400;
   font-style: italic;
@@ -575,7 +586,7 @@ textarea, input {
   border: 1px solid var(--border-strong);
   color: var(--text);
   border-radius: var(--radius-sm);
-  padding: 9px 10px;
+  padding: calc(9px * var(--ui-scale)) calc(10px * var(--ui-scale));
   /* Same 16px floor as .wa-paste-zone above, same iOS auto-zoom reason. */
   font-size: 16px;
   width: 100%;
@@ -586,32 +597,32 @@ textarea:focus, input:focus {
   border-color: var(--accent);
 }
 
-.icon-btn { padding: 9px 11px; font-size: calc(15px * var(--text-scale)); line-height: 1; }
+.icon-btn { padding: calc(9px * var(--ui-scale)) calc(11px * var(--ui-scale)); font-size: calc(15px * var(--text-scale)); line-height: 1; }
 
 /* Inline entry-price editor, anchored under the ENTRY column of the range
    bar labels - a small pencil toggles a compact input + confirm/cancel
    pair in place, no separate dialog needed for a single-number edit. */
-.metric-value-row { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.metric-value-row { display: flex; align-items: center; justify-content: center; gap: calc(4px * var(--ui-scale)); }
 .entry-edit-btn {
   border: none;
   background: none;
   color: var(--text-faint);
   cursor: pointer;
-  padding: 2px;
+  padding: calc(2px * var(--ui-scale));
   line-height: 1;
   font-size: calc(12px * var(--text-scale));
 }
 .entry-edit-btn:hover { color: var(--accent); }
-.entry-edit { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 1px; }
+.entry-edit { display: flex; align-items: center; justify-content: center; gap: calc(4px * var(--ui-scale)); margin-top: 1px; }
 .entry-edit-input {
-  width: 84px;
-  padding: 4px 6px;
+  width: calc(84px * var(--ui-scale));
+  padding: calc(4px * var(--ui-scale)) calc(6px * var(--ui-scale));
   text-align: center;
 }
-.entry-edit-actions { display: flex; gap: 4px; }
+.entry-edit-actions { display: flex; gap: calc(4px * var(--ui-scale)); }
 .icon-btn-sm {
-  width: 22px;
-  height: 22px;
+  width: calc(22px * var(--ui-scale));
+  height: calc(22px * var(--ui-scale));
   border-radius: 6px;
   border: 1px solid var(--border-strong);
   background: var(--surface-2);
@@ -642,15 +653,15 @@ textarea:focus, input:focus {
   max-width: 480px;
   background: var(--surface);
   border-top: 1px solid var(--border-strong);
-  border-radius: 20px 20px 0 0;
-  padding: 10px 18px 20px;
+  border-radius: calc(20px * var(--ui-scale)) calc(20px * var(--ui-scale)) 0 0;
+  padding: calc(10px * var(--ui-scale)) calc(18px * var(--ui-scale)) calc(20px * var(--ui-scale));
   /* The panel as a column: header fixed, content scrolls, actions stay stuck
      to the bottom - like a native bottom sheet, the page stays live and dimmed
      behind it. */
   display: flex;
   flex-direction: column;
   max-height: 92%;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0));
+  padding-bottom: calc(20px * var(--ui-scale) + env(safe-area-inset-bottom, 0));
 }
 
 .sheet-body {
@@ -660,21 +671,19 @@ textarea:focus, input:focus {
   margin-top: 2px;
 }
 
-.sheet-actions { display: flex; gap: 8px; margin-top: 0; padding-top: 14px; flex-shrink: 0; }
-
 .sheet-handle {
-  width: 36px;
-  height: 4px;
+  width: calc(36px * var(--ui-scale));
+  height: calc(4px * var(--ui-scale));
   border-radius: 2px;
   background: var(--border-strong);
-  margin: 2px auto 14px;
+  margin: calc(2px * var(--ui-scale)) auto calc(14px * var(--ui-scale));
 }
 
-.sheet-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.sheet-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: calc(16px * var(--ui-scale)); }
 .sheet-header-row .sheet-title { margin: 0; }
 .sheet-close {
-  width: 28px;
-  height: 28px;
+  width: calc(28px * var(--ui-scale));
+  height: calc(28px * var(--ui-scale));
   flex-shrink: 0;
   border-radius: 8px;
   border: 1px solid var(--border-strong);
@@ -697,8 +706,8 @@ textarea:focus, input:focus {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 14px;
-  margin-bottom: 14px;
+  padding: calc(14px * var(--ui-scale));
+  margin-bottom: calc(14px * var(--ui-scale));
 }
 .settings-section-title {
   font-size: calc(12px * var(--text-scale));
@@ -708,7 +717,7 @@ textarea:focus, input:focus {
 }
 .settings-section .field:last-child { margin-bottom: 0; }
 
-.field { margin-bottom: 14px; }
+.field { margin-bottom: calc(14px * var(--ui-scale)); }
 .field-label {
   display: block;
   font-size: calc(11px * var(--text-scale));
@@ -729,7 +738,7 @@ textarea:focus, input:focus {
    bare browser default doesn't follow the app's accent color or theme. */
 .text-scale-slider {
   width: 100%;
-  height: 6px;
+  height: calc(6px * var(--ui-scale));
   border-radius: 3px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -738,16 +747,16 @@ textarea:focus, input:focus {
 }
 .text-scale-slider::-webkit-slider-thumb {
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: calc(22px * var(--ui-scale));
+  height: calc(22px * var(--ui-scale));
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--accent-strong);
   cursor: pointer;
 }
 .text-scale-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: calc(22px * var(--ui-scale));
+  height: calc(22px * var(--ui-scale));
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--accent-strong);
@@ -760,7 +769,7 @@ textarea:focus, input:focus {
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 3px;
+  padding: calc(3px * var(--ui-scale));
 }
 .seg-btn {
   flex: 1;
@@ -769,25 +778,25 @@ textarea:focus, input:focus {
   color: var(--text-muted);
   font-size: calc(13px * var(--text-scale));
   font-weight: calc(600 + var(--fw-boost));
-  padding: 8px 0;
-  min-height: 38px;
+  padding: calc(8px * var(--ui-scale)) 0;
+  min-height: calc(38px * var(--ui-scale));
   border-radius: 7px;
   cursor: pointer;
   font-family: inherit;
 }
 .seg-btn.active { background: var(--accent); color: var(--accent-ink); }
 
-.sheet-actions { display: flex; gap: 8px; margin-top: 20px; }
-.sheet-actions .btn { flex: 1; min-height: 48px; }
+.sheet-actions { display: flex; gap: calc(8px * var(--ui-scale)); margin-top: calc(20px * var(--ui-scale)); padding-top: 0; flex-shrink: 0; }
+.sheet-actions .btn { flex: 1; min-height: calc(48px * var(--ui-scale)); }
 
 /* Horizontally-scrollable filter row (Watchlist) - more options than a
    .segmented toggle comfortably fits, so chips scroll instead of squeezing. */
 .filter-chips {
   display: flex;
-  gap: 6px;
+  gap: calc(6px * var(--ui-scale));
   overflow-x: auto;
   padding-bottom: 4px;
-  margin-bottom: 14px;
+  margin-bottom: calc(14px * var(--ui-scale));
   -webkit-overflow-scrolling: touch;
 }
 .filter-chip {
@@ -797,9 +806,9 @@ textarea:focus, input:focus {
   color: var(--text-muted);
   font-size: calc(12.5px * var(--text-scale));
   font-weight: calc(600 + var(--fw-boost));
-  padding: 6px 12px;
+  padding: calc(6px * var(--ui-scale)) calc(12px * var(--ui-scale));
   /* Tall enough to be a real tap target in a horizontally scrolling row. */
-  min-height: 40px;
+  min-height: calc(40px * var(--ui-scale));
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
@@ -816,7 +825,7 @@ textarea:focus, input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: calc(8px * var(--ui-scale));
   width: 100%;
   padding: 0;
   margin: 0 0 2px;
@@ -827,10 +836,10 @@ textarea:focus, input:focus {
   text-align: left;
   cursor: pointer;
   /* 44px minimum touch target - the whole head is the tap target for detail. */
-  min-height: 44px;
+  min-height: calc(44px * var(--ui-scale));
 }
-.signal-head-left { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-width: 0; }
-.signal-head-right { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.signal-head-left { display: flex; gap: calc(6px * var(--ui-scale)); align-items: center; flex-wrap: wrap; min-width: 0; }
+.signal-head-right { display: flex; gap: calc(6px * var(--ui-scale)); align-items: center; flex-shrink: 0; }
 .chev {
   color: var(--text-faint);
   font-size: calc(12px * var(--text-scale));
@@ -841,34 +850,34 @@ textarea:focus, input:focus {
 
 /* The three decision numbers: equal columns so entry/SL/TP line up from one
    card to the next instead of drifting with the label widths. */
-.metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
+.metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(8px * var(--ui-scale)); margin-top: calc(4px * var(--ui-scale)); }
 .metric-cell { min-width: 0; }
 .metric-cell .metric-value {
   font-size: calc(15px * var(--text-scale));
   font-weight: calc(700 + var(--fw-boost));
 }
-.metric-value-row { display: flex; align-items: center; gap: 4px; }
+.metric-value-row { display: flex; align-items: center; gap: calc(4px * var(--ui-scale)); }
 
 /* "Beli" line - the suggested size, the answer to "how much should I buy". */
 .pos-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 6px 8px;
+  gap: calc(8px * var(--ui-scale));
+  margin-top: calc(8px * var(--ui-scale));
+  padding: calc(6px * var(--ui-scale)) calc(8px * var(--ui-scale));
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 .pos-line-value {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(6px * var(--ui-scale));
   font-size: calc(13.5px * var(--text-scale));
   font-weight: calc(700 + var(--fw-boost));
 }
 
-.card-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.card-actions { display: flex; gap: calc(8px * var(--ui-scale)); align-items: center; margin-top: calc(10px * var(--ui-scale)); }
 
 /* The repeating action button on every open position/signal card ("Tutup
    posisi", "Konfirmasi fill", "Catat order") was reading as an oversized,
@@ -890,11 +899,11 @@ textarea:focus, input:focus {
    hit while reaching for "copy". */
 .signal-menu {
   display: flex;
-  gap: 8px;
+  gap: calc(8px * var(--ui-scale));
   flex-wrap: wrap;
   align-items: center;
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: calc(8px * var(--ui-scale));
+  padding-top: calc(8px * var(--ui-scale));
   border-top: 1px solid var(--border);
 }
 
@@ -907,5 +916,4 @@ textarea:focus, input:focus {
 }
 .btn-danger:hover { border-color: var(--danger); }
 
-.detail-block { margin-top: 10px; }
-
+.detail-block { margin-top: calc(10px * var(--ui-scale)); }

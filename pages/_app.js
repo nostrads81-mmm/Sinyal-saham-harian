@@ -4,7 +4,7 @@ import { Comic_Neue } from 'next/font/google';
 import BottomNav from '../components/BottomNav';
 import UpdateFab from '../components/UpdateFab';
 import {
-  applyTheme, getStoredTheme, applyTextScale, getStoredTextScale, applyBold, getStoredBold,
+  applyTheme, getStoredTheme, applyTextScale, getStoredTextScale, applyBold, getStoredBold, applyUiScale,
 } from '../lib/theme';
 import '../styles/globals.css';
 
@@ -22,6 +22,7 @@ export default function App({ Component, pageProps }) {
     applyTheme(getStoredTheme());
     applyTextScale(getStoredTextScale());
     applyBold(getStoredBold());
+    applyUiScale();
   }, []);
 
   return (
