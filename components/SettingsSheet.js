@@ -3,14 +3,8 @@ import { createPortal } from 'react-dom';
 import { formatRupiahRingkas } from '../lib/format';
 import {
   getStoredTheme, setStoredTheme, getStoredTextScale, setStoredTextScale, getStoredBold, setStoredBold,
+  TEXT_SCALE_MIN, TEXT_SCALE_MAX, TEXT_SCALE_DEFAULT,
 } from '../lib/theme';
-
-const TEXT_SCALE_OPTIONS = [
-  { value: 'kecil', label: 'Kecil' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'besar', label: 'Besar' },
-  { value: 'extra-besar', label: 'Extra' },
-];
 
 const ENTRY_MODE_OPTIONS = [
   { value: 'low', label: 'Bawah' },
@@ -61,7 +55,7 @@ export default function SettingsSheet({
   const [entryModeInput, setEntryModeInput] = useState('mid');
   const [tpModeInput, setTpModeInput] = useState('mid');
   const [theme, setTheme] = useState('dark');
-  const [textScale, setTextScale] = useState('normal');
+  const [textScale, setTextScale] = useState(TEXT_SCALE_DEFAULT);
   const [bold, setBold] = useState(false);
   const [modalTxJumlah, setModalTxJumlah] = useState('');
   const [modalTxKeterangan, setModalTxKeterangan] = useState('');
@@ -338,18 +332,20 @@ export default function SettingsSheet({
           </div>
 
           <div className="field">
-            <label className="field-label">Ukuran teks</label>
-            <div className="segmented">
-              {TEXT_SCALE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  className={`seg-btn ${textScale === opt.value ? 'active' : ''}`}
-                  onClick={() => chooseTextScale(opt.value)}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <label className="field-label">Ukuran teks &middot; {textScale}%</label>
+            <input
+              type="range"
+              min={TEXT_SCALE_MIN}
+              max={TEXT_SCALE_MAX}
+              step={5}
+              value={textScale}
+              onChange={(e) => chooseTextScale(Number(e.target.value))}
+              className="text-scale-slider"
+            />
+            <div className="field-hint" style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>{TEXT_SCALE_MIN}%</span>
+              <span>Normal (100%)</span>
+              <span>{TEXT_SCALE_MAX}%</span>
             </div>
           </div>
 
