@@ -9,7 +9,9 @@ import { daysHeld, computeNetPnl, computeEntryTotalPnl, sumPartialSellLot } from
 import SettingsSheet from '../components/SettingsSheet';
 import PositionCard from '../components/PositionCard';
 import { parseHargaInput, parseLotInput, computeWeightedEntryFromTiers, computeStatusFromTiers } from '../lib/journalInput';
-import { formatRupiah, formatRupiahRingkas, todayDDMMYYYY, parseLotFromCatatan } from '../lib/format';
+import {
+  formatRupiah, formatRupiahRingkas, todayDDMMYYYY, parseLotFromCatatan, parseDDMMYYYY,
+} from '../lib/format';
 
 const STATUS_BADGE = {
   RUNNING: { cls: 'badge', label: 'running' },
@@ -322,7 +324,18 @@ export default function RekapanPage() {
   const partiallySoldRunning = settings
     ? entries.filter((e) => !e.status.startsWith('CLOSE') && e.partialSells && e.partialSells.length > 0)
     : [];
-  const closedEntries = [...closed, ...partiallySoldRunning].sort((a, b) => b.rowNumber - a.rowNumber);
+  // Newest sale first - a plain close uses its exit date, a still-open
+  // position with partial sells uses the most recent one of those (pushed
+  // onto the end of the list, see submitPartialSell below), so this sorts
+  // by "when did something here last get sold" rather than entry order.
+  function lastSaleDate(e) {
+    const exitDate = e.status.startsWith('CLOSE') ? e.tanggalExit : null;
+    const lastPartial = e.partialSells?.length ? e.partialSells[e.partialSells.length - 1].tanggal : null;
+    const dates = [exitDate, lastPartial].filter(Boolean).map((d) => parseDDMMYYYY(String(d).replace(/^'/, '')));
+    const valid = dates.filter(Boolean).map((d) => d.getTime());
+    return valid.length ? Math.max(...valid) : 0;
+  }
+  const closedEntries = [...closed, ...partiallySoldRunning].sort((a, b) => lastSaleDate(b) - lastSaleDate(a));
   const closedNet = closed.map((e) => computeEntryTotalPnl(e, settings));
   const wins = closedNet.filter((n) => n && n.pnlPercent >= 0).length;
   const losses = closedNet.filter((n) => n && n.pnlPercent < 0).length;
