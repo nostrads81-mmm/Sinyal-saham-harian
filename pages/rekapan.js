@@ -190,14 +190,14 @@ export default function RekapanPage() {
   async function saveSettings({
     capital, riskPercent, maxSlots,
     buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
-    entryMode, tpMode,
+    entryMode, tpMode, entryTierAtasPercent, entryTierTengahPercent,
   }) {
     setSettingsSaving(true);
     try {
       await updateSettings(token, sheetId, {
         capital, riskPercent, maxSlots,
         buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
-        entryMode, tpMode,
+        entryMode, tpMode, entryTierAtasPercent, entryTierTengahPercent,
       });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
@@ -285,6 +285,8 @@ export default function RekapanPage() {
         materaiThreshold={settings ? settings.materaiThreshold : 10000000}
         entryMode={settings ? settings.entryMode : 'mid'}
         tpMode={settings ? settings.tpMode : 'mid'}
+        entryTierAtasPercent={settings ? settings.entryTierAtasPercent : 30}
+        entryTierTengahPercent={settings ? settings.entryTierTengahPercent : 30}
         onSave={saveSettings}
         saving={settingsSaving}
       />

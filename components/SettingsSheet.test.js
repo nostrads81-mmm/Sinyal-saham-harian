@@ -56,8 +56,25 @@ describe('SettingsSheet', () => {
     expect(html).toContain('Modal Awal');
     expect(html).toContain('Fee beli (%)');
     expect(html).toContain('Batas kena materai (Rp)');
+    expect(html).toContain('Entry 3 Tahap');
     expect(html).toContain('Simpan');
     expect(html).toContain('Batal');
+  });
+
+  test('entry-tier fields default to 30/30 (bawah computed as 40) when no percentages are passed', () => {
+    const html = render();
+
+    expect(html).toContain('value="30"');
+    // "Bawah" is the disabled, computed third field - 100 - 30 - 30 = 40.
+    expect(html).toContain('value="40"');
+  });
+
+  test('entry-tier fields pre-fill from the given percentages, bawah computed from them', () => {
+    const html = render({ entryTierAtasPercent: 20, entryTierTengahPercent: 35 });
+
+    expect(html).toContain('value="20"');
+    expect(html).toContain('value="35"');
+    expect(html).toContain('value="45"');
   });
 
   test('shows Tambah/Kurang Modal only when a handler is provided', () => {

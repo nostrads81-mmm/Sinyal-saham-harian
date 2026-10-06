@@ -44,6 +44,7 @@ export default function SettingsSheet({
   buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
   entryMode, tpMode, onSave, saving,
   modalHistory, onSubmitModalTransaction,
+  entryTierAtasPercent, entryTierTengahPercent,
 }) {
   const [capitalInput, setCapitalInput] = useState(String(capital));
   const [riskInput, setRiskInput] = useState(riskFractionToDisplay(riskPercent));
@@ -54,6 +55,8 @@ export default function SettingsSheet({
   const [materaiThresholdInput, setMateraiThresholdInput] = useState(String(materaiThreshold));
   const [entryModeInput, setEntryModeInput] = useState('mid');
   const [tpModeInput, setTpModeInput] = useState('mid');
+  const [tierAtasInput, setTierAtasInput] = useState(String(entryTierAtasPercent ?? 30));
+  const [tierTengahInput, setTierTengahInput] = useState(String(entryTierTengahPercent ?? 30));
   const [theme, setTheme] = useState('dark');
   const [textScale, setTextScale] = useState(TEXT_SCALE_DEFAULT);
   const [bold, setBold] = useState(false);
@@ -72,6 +75,8 @@ export default function SettingsSheet({
       setMateraiThresholdInput(String(materaiThreshold));
       setEntryModeInput(entryMode || 'mid');
       setTpModeInput(tpMode || 'mid');
+      setTierAtasInput(String(entryTierAtasPercent ?? 30));
+      setTierTengahInput(String(entryTierTengahPercent ?? 30));
       setTheme(getStoredTheme());
       setTextScale(getStoredTextScale());
       setBold(getStoredBold());
@@ -79,6 +84,7 @@ export default function SettingsSheet({
   }, [
     open, capital, riskPercent, maxSlots,
     buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold, entryMode, tpMode,
+    entryTierAtasPercent, entryTierTengahPercent,
   ]);
 
   if (!open) return null;
@@ -252,6 +258,41 @@ export default function SettingsSheet({
               TP1 &amp; TP2 tampil terpisah, atau digabung jadi satu "TP Tengah" (titik tengah keduanya). Skor sinyal ikut memakai basis yang sama.
             </p>
           </div>
+
+          <div className="field">
+            <label className="field-label">Entry 3 Tahap (%)</label>
+            <div className="card-row" style={{ gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <p className="field-hint" style={{ margin: '0 0 4px' }}>Atas</p>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  inputMode="numeric"
+                  value={tierAtasInput}
+                  onChange={(e) => setTierAtasInput(e.target.value)}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p className="field-hint" style={{ margin: '0 0 4px' }}>Tengah</p>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  inputMode="numeric"
+                  value={tierTengahInput}
+                  onChange={(e) => setTierTengahInput(e.target.value)}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p className="field-hint" style={{ margin: '0 0 4px' }}>Bawah</p>
+                <input type="number" value={Math.max(0, 100 - (Number(tierAtasInput) || 0) - (Number(tierTengahInput) || 0))} disabled />
+              </div>
+            </div>
+            <p className="field-hint">
+              Modal tiap sinyal dipecah jadi 3 harga beli (batas atas, tengah, batas bawah rentang buy WA) sesuai persentase ini. "Bawah" otomatis mengambil sisanya supaya selalu total 100%.
+            </p>
+          </div>
         </div>
 
         <div className="settings-section">
@@ -376,17 +417,26 @@ export default function SettingsSheet({
           <button
             className="btn btn-primary"
             disabled={saving}
-            onClick={() => onSave({
-              capital: Number(capitalInput) || capital,
-              riskPercent: riskDisplayToFraction(riskInput) ?? riskPercent,
-              maxSlots: Number(slotsInput) || maxSlots,
-              buyFeePercent: riskDisplayToFraction(buyFeeInput) ?? buyFeePercent,
-              sellFeePercent: riskDisplayToFraction(sellFeeInput) ?? sellFeePercent,
-              materaiAmount: Number(materaiInput) || materaiAmount,
-              materaiThreshold: Number(materaiThresholdInput) || materaiThreshold,
-              entryMode: entryModeInput,
-              tpMode: tpModeInput,
-            })}
+            onClick={() => {
+              // Clamped so "bawah" (100 - the other two, computed on read -
+              // see lib/sheets.js) can never go negative from a typo like
+              // atas=70 + tengah=50.
+              const atas = Math.min(100, Math.max(0, Number(tierAtasInput) || 0));
+              const tengah = Math.min(100 - atas, Math.max(0, Number(tierTengahInput) || 0));
+              onSave({
+                capital: Number(capitalInput) || capital,
+                riskPercent: riskDisplayToFraction(riskInput) ?? riskPercent,
+                maxSlots: Number(slotsInput) || maxSlots,
+                buyFeePercent: riskDisplayToFraction(buyFeeInput) ?? buyFeePercent,
+                sellFeePercent: riskDisplayToFraction(sellFeeInput) ?? sellFeePercent,
+                materaiAmount: Number(materaiInput) || materaiAmount,
+                materaiThreshold: Number(materaiThresholdInput) || materaiThreshold,
+                entryMode: entryModeInput,
+                tpMode: tpModeInput,
+                entryTierAtasPercent: atas,
+                entryTierTengahPercent: tengah,
+              });
+            }}
           >
             {saving ? 'Menyimpan...' : 'Simpan'}
           </button>

@@ -210,6 +210,9 @@ export default function SinyalPage() {
         const ranked = rankSignals(rankable, {
           capital: computedTotalModal, riskPercent: settingsData.riskPercent, remainingCapital,
           maxSlots: settingsData.maxSlots, occupiedSlots, journaledStocks: journaled,
+          entryTierAtasPercent: settingsData.entryTierAtasPercent,
+          entryTierTengahPercent: settingsData.entryTierTengahPercent,
+          entryTierBawahPercent: settingsData.entryTierBawahPercent,
         });
 
         pruneStaleDismissals();
@@ -372,14 +375,14 @@ export default function SinyalPage() {
   async function saveSettings({
     capital, riskPercent, maxSlots,
     buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
-    entryMode, tpMode,
+    entryMode, tpMode, entryTierAtasPercent, entryTierTengahPercent,
   }) {
     setSettingsSaving(true);
     try {
       await updateSettings(token, sheetId, {
         capital, riskPercent, maxSlots,
         buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
-        entryMode, tpMode,
+        entryMode, tpMode, entryTierAtasPercent, entryTierTengahPercent,
       });
       setSettingsOpen(false);
       setRefreshKey((k) => k + 1);
@@ -619,6 +622,8 @@ export default function SinyalPage() {
         materaiThreshold={settings ? settings.materaiThreshold : 10000000}
         entryMode={settings ? settings.entryMode : 'mid'}
         tpMode={settings ? settings.tpMode : 'mid'}
+        entryTierAtasPercent={settings ? settings.entryTierAtasPercent : 30}
+        entryTierTengahPercent={settings ? settings.entryTierTengahPercent : 30}
         onSave={saveSettings}
         saving={settingsSaving}
         modalHistory={modalHistory}
