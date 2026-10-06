@@ -390,9 +390,23 @@ export default function SignalCard({
                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--badge-border)' }}>
                   <p className="muted" style={{ marginBottom: 4 }}>Entry 3 tahap</p>
                   {s.entryTiers.map((t) => (
-                    <div key={t.label} className="pb-row" style={{ marginTop: 2 }}>
-                      <span className="muted" style={{ textTransform: 'capitalize' }}>{t.label} · {t.price.toLocaleString('id-ID')}</span>
-                      <span>{formatRupiahRingkas(t.rupiah)} <span className="muted">· {Math.round(t.lembar / 100)} lot</span></span>
+                    <div key={t.label} style={{ marginTop: 2, paddingBottom: 4 }}>
+                      <div className="pb-row">
+                        <span className="muted" style={{ textTransform: 'capitalize' }}>{t.label} · {t.price.toLocaleString('id-ID')}</span>
+                        <span>{formatRupiahRingkas(t.rupiah)} <span className="muted">· {Math.round(t.lembar / 100)} lot</span></span>
+                      </div>
+                      {t.lembar > 0 && (
+                        <div className="pb-row" style={{ marginTop: 1 }}>
+                          <span className="muted">
+                            SL {s.sl?.toLocaleString('id-ID')} · TP {mainTp?.toLocaleString('id-ID')}
+                          </span>
+                          <span className="muted">
+                            <span className="text-danger">-{formatRupiahRingkas((t.price - s.sl) * t.lembar)}</span>
+                            {' / '}
+                            <span className="text-success">+{formatRupiahRingkas((mainTp - t.price) * t.lembar)}</span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
