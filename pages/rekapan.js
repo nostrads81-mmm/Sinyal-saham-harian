@@ -315,7 +315,14 @@ export default function RekapanPage() {
   const runningEntries = settings
     ? entries.filter((e) => e.status === 'RUNNING' || e.status === 'PENDING' || e.status === 'OPEN')
     : [];
-  const closedEntries = closed;
+  // "Sudah terjual" also lists a still-RUNNING position that's only been
+  // partially sold - some of its lot really has been sold already, even
+  // though the position as a whole isn't closed yet, so hiding it here
+  // until the rest closes made that sale look like it never happened.
+  const partiallySoldRunning = settings
+    ? entries.filter((e) => !e.status.startsWith('CLOSE') && e.partialSells && e.partialSells.length > 0)
+    : [];
+  const closedEntries = [...closed, ...partiallySoldRunning].sort((a, b) => b.rowNumber - a.rowNumber);
   const closedNet = closed.map((e) => computeEntryTotalPnl(e, settings));
   const wins = closedNet.filter((n) => n && n.pnlPercent >= 0).length;
   const losses = closedNet.filter((n) => n && n.pnlPercent < 0).length;
@@ -525,10 +532,12 @@ export default function RekapanPage() {
             <span className="muted">{showClosed ? 'Sembunyikan ▴' : 'Tampilkan ▾'}</span>
           </button>
           {showClosed && closedEntries.map((e) => {
+            const isClosed = e.status.startsWith('CLOSE');
             const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
             const lot = parseLotFromCatatan(e.catatan);
+            const remainingLot = lot - sumPartialSellLot(e.partialSells);
             const net = computeEntryTotalPnl(e, settings);
-            const held = daysHeld(e.tanggalEntry, e.tanggalExit);
+            const held = isClosed ? daysHeld(e.tanggalEntry, e.tanggalExit) : null;
             const expanded = expandedRow === e.rowNumber;
             return (
               <div key={e.rowNumber} className="card signal-card">
@@ -541,6 +550,7 @@ export default function RekapanPage() {
                   <span className="signal-head-left">
                     <span className="ticker">{e.stock}</span>
                     {e.tag && <span className="badge badge-sm">{e.tag}</span>}
+                    {!isClosed && <span className="badge badge-sm">sebagian</span>}
                   </span>
                   <span className="signal-head-right">
                     <span className={badge.cls}>
@@ -550,15 +560,22 @@ export default function RekapanPage() {
                   </span>
                 </button>
                 <p className="muted" style={{ marginTop: 2 }}>
-                  {e.tanggalEntry} &rarr; {e.tanggalExit}
-                  {held !== null ? ` · ${held} hari` : ''}
+                  {isClosed ? (
+                    <>{e.tanggalEntry} &rarr; {e.tanggalExit}{held !== null ? ` · ${held} hari` : ''}</>
+                  ) : (
+                    <>{e.tanggalEntry} &middot; posisi masih berjalan, sisa {remainingLot} lot</>
+                  )}
                 </p>
 
                 {expanded && (
                   <>
                     <p className="muted" style={{ marginTop: 6 }}>
-                      Entry {e.entry?.toLocaleString('id-ID')} &middot; Exit {e.hargaExit?.toLocaleString('id-ID')}
-                      &middot; {lot ? `${lot} lot` : '- lot'}
+                      Entry {e.entry?.toLocaleString('id-ID')}
+                      {isClosed ? (
+                        <> &middot; Exit {e.hargaExit?.toLocaleString('id-ID')} &middot; {lot ? `${lot} lot` : '- lot'}</>
+                      ) : (
+                        <> &middot; sisa {remainingLot} lot masih terbuka</>
+                      )}
                     </p>
                     {net && !net.estimated && (
                       <p className={`muted ${net.pnlRp >= 0 ? 'text-success' : 'text-danger'}`} style={{ marginTop: 2 }}>
