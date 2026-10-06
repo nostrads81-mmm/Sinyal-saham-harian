@@ -320,9 +320,16 @@ export default function RekapanPage() {
   const wins = closedNet.filter((n) => n && n.pnlPercent >= 0).length;
   const losses = closedNet.filter((n) => n && n.pnlPercent < 0).length;
   const winRate = closed.length > 0 ? (wins / closed.length) * 100 : null;
-  const totalPnlRp = closedNet.reduce((sum, n) => sum + (n?.pnlRp || 0), 0);
-  const totalPnlPercent = closedNet.reduce((sum, n) => sum + (n?.pnlPercent || 0), 0);
-  const anyEstimated = closedNet.some((n) => n?.estimated);
+  // "Total P&L bersih" at the top counts every rupiah already realized, not
+  // just fully-closed trades - a partial sell on a still-RUNNING position
+  // banks real P&L immediately (see lib/pnl.js's sumRealizedPnl) and should
+  // move this number too, well before the rest of that position is closed.
+  const realizedNet = settings
+    ? entries.map((e) => computeEntryTotalPnl(e, settings)).filter(Boolean)
+    : [];
+  const totalPnlRp = realizedNet.reduce((sum, n) => sum + (n?.pnlRp || 0), 0);
+  const totalPnlPercent = realizedNet.reduce((sum, n) => sum + (n?.pnlPercent || 0), 0);
+  const anyEstimated = realizedNet.some((n) => n?.estimated);
 
   // Win rate split by trade type - only meaningful for entries recorded
   // after TradeType started being saved to the journal (see the
@@ -378,9 +385,9 @@ export default function RekapanPage() {
         <div>
           <div className="hero-label">Total P&amp;L bersih</div>
           <div className={`hero-value ${totalPnlRp >= 0 ? 'text-success' : 'text-danger'}`}>
-            {closedEntries.length > 0 ? `${totalPnlRp >= 0 ? '+' : ''}${formatRupiah(totalPnlRp)}` : '-'}
+            {realizedNet.length > 0 ? `${totalPnlRp >= 0 ? '+' : ''}${formatRupiah(totalPnlRp)}` : '-'}
           </div>
-          {closedEntries.length > 0 && (
+          {realizedNet.length > 0 && (
             <p className="muted" style={{ margin: '2px 0 0' }}>
               {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
               {anyEstimated ? ' · sebagian estimasi (lot tidak tercatat)' : ''}
@@ -571,6 +578,17 @@ export default function RekapanPage() {
                         )
                       )}
                     </p>
+                    {e.partialSells && e.partialSells.length > 0 && (
+                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                        <p className="muted" style={{ marginBottom: 4 }}>Sudah dijual sebagian</p>
+                        {e.partialSells.map((p, i) => (
+                          <div key={i} className="pb-row" style={{ marginTop: 2 }}>
+                            <span className="muted">{p.tanggal?.replace(/^'/, '')} · {p.lot} lot</span>
+                            <span>{p.hargaExit.toLocaleString('id-ID')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
