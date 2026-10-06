@@ -325,6 +325,22 @@ export default function SignalCard({
                     : '⚠ Lot dikurangi dari saran normal, disesuaikan sisa modal'}
                 </span>
               )}
+              {/* Entry 3 tahap: kept inside this already-expanded detail, not
+                  the collapsed card face - three extra rows per card would
+                  make a list of several signals feel noisy for something
+                  that's just a suggestion until "Catat order" is actually
+                  tapped. */}
+              {s.entryTiers && s.entryTiers.some((t) => t.lembar > 0) && (
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--badge-border)' }}>
+                  <p className="muted" style={{ marginBottom: 4 }}>Entry 3 tahap</p>
+                  {s.entryTiers.map((t) => (
+                    <div key={t.label} className="pb-row" style={{ marginTop: 2 }}>
+                      <span className="muted" style={{ textTransform: 'capitalize' }}>{t.label} · {t.price.toLocaleString('id-ID')}</span>
+                      <span>{formatRupiahRingkas(t.rupiah)} <span className="muted">· {Math.round(t.lembar / 100)} lot</span></span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
