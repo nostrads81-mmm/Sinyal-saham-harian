@@ -48,6 +48,12 @@ export default function SignalCard({
   const [recordPrice, setRecordPrice] = useState('');
   const [recordLot, setRecordLot] = useState('');
   const [recordFilled, setRecordFilled] = useState(false);
+  // One entry per tier (atas/tengah/bawah) when the signal has a tier
+  // breakdown with actual lot to record - [] falls back to the single
+  // price/lot form below for a signal with no sizable entryTiers (e.g. a
+  // journaled stock already filtered out, or a budget too small for even
+  // one tier to afford a lot).
+  const [tierInputs, setTierInputs] = useState([]);
   const [recordSaving, setRecordSaving] = useState(false);
   const [recordError, setRecordError] = useState(null);
   const [entryEdit, setEntryEdit] = useState(false);
@@ -58,14 +64,60 @@ export default function SignalCard({
   const pos = s.position || null;
   const separateTp = settings && settings.tpMode === 'separate';
   const mainTp = separateTp ? s.tp1 : s.tpMid;
+  const sizableTiers = (s.entryTiers || []).filter((t) => t.lembar > 0);
 
   function openRecordForm() {
     setRecordPrice(String(s.entry));
     setRecordLot(pos ? String(Math.round(pos.lembar / 100)) : '');
     setRecordFilled(false);
+    setTierInputs(sizableTiers.map((t) => ({
+      label: t.label,
+      targetPrice: t.price,
+      targetLot: t.lembar,
+      priceInput: String(t.price),
+      lotInput: String(Math.round(t.lembar / 100)),
+      filled: false,
+    })));
     setRecordError(null);
     setRecordOpen(true);
     setMenuOpen(false);
+  }
+
+  function updateTierInput(label, field, value) {
+    setTierInputs((prev) => prev.map((t) => (t.label === label ? { ...t, [field]: value } : t)));
+  }
+
+  async function submitTieredRecordForm() {
+    const built = [];
+    for (const t of tierInputs) {
+      if (t.filled) {
+        const price = parseHargaInput(t.priceInput);
+        const lot = parseLotInput(t.lotInput);
+        if (price.error || lot.error) {
+          setRecordError(price.error || lot.error);
+          return;
+        }
+        built.push({
+          label: t.label, targetPrice: t.targetPrice, targetLot: t.targetLot,
+          status: 'FILLED', fillPrice: price.value ?? t.targetPrice, fillLot: (lot.value ?? 0) * 100,
+        });
+      } else {
+        built.push({
+          label: t.label, targetPrice: t.targetPrice, targetLot: t.targetLot,
+          status: 'PENDING', fillPrice: null, fillLot: null,
+        });
+      }
+    }
+    setRecordSaving(true);
+    setRecordError(null);
+    try {
+      await onSaveRecord(s, { tiers: built });
+      setRecordOpen(false);
+    } catch (e) {
+      setRecordError(e.message);
+    } finally {
+      setRecordSaving(false);
+    }
   }
 
   async function submitRecordForm() {
@@ -355,7 +407,64 @@ export default function SignalCard({
         </div>
       )}
 
-      {recordOpen && (
+      {recordOpen && tierInputs.length > 0 && (
+        <div className="detail-block" style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Catat tiap tahap yang sudah ke-fill di broker. Tahap yang belum/tidak ke-fill biarkan "Belum fill" - bisa dibatalkan nanti di Rekapan.
+          </p>
+          {tierInputs.map((t) => (
+            <div key={t.label} style={{ marginBottom: 10, padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)' }}>
+              <div className="card-row" style={{ marginBottom: 6 }}>
+                <span style={{ textTransform: 'capitalize', fontWeight: 700 }}>{t.label}</span>
+                <span className="muted">target {t.targetPrice.toLocaleString('id-ID')} · {Math.round(t.targetLot / 100)} lot</span>
+              </div>
+              <div className="segmented" style={{ marginBottom: t.filled ? 6 : 0 }}>
+                <button
+                  type="button"
+                  className={`seg-btn ${t.filled ? 'active' : ''}`}
+                  onClick={() => updateTierInput(t.label, 'filled', true)}
+                >
+                  Sudah fill
+                </button>
+                <button
+                  type="button"
+                  className={`seg-btn ${!t.filled ? 'active' : ''}`}
+                  onClick={() => updateTierInput(t.label, 'filled', false)}
+                >
+                  Belum fill
+                </button>
+              </div>
+              {t.filled && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    type="number"
+                    value={t.priceInput}
+                    onChange={(e) => updateTierInput(t.label, 'priceInput', e.target.value)}
+                    placeholder="Harga fill"
+                  />
+                  <input
+                    type="number"
+                    value={t.lotInput}
+                    onChange={(e) => updateTierInput(t.label, 'lotInput', e.target.value)}
+                    placeholder="Lot"
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+          {recordError && <p className="muted text-danger">{recordError}</p>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" style={{ flex: 1 }} onClick={() => setRecordOpen(false)} disabled={recordSaving}>
+              Batal
+            </button>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={submitTieredRecordForm} disabled={recordSaving}>
+              {recordSaving ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {recordOpen && tierInputs.length === 0 && (
         <div className="detail-block" style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
           <p className="muted" style={{ marginBottom: 4 }}>Harga beli {recordFilled ? 'aktual' : 'yang dipasang'}</p>
           <input

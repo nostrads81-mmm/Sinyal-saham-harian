@@ -14,6 +14,7 @@ import { sumRealizedPnl } from '../lib/pnl';
 import SignalCard from '../components/SignalCard';
 import SettingsSheet from '../components/SettingsSheet';
 import { formatRupiah, todayDDMMYYYY } from '../lib/format';
+import { computeWeightedEntryFromTiers, computeStatusFromTiers } from '../lib/journalInput';
 import { safeGetItem, safeRemoveItem } from '../lib/storage';
 import { getDismissedSignals, dismissSignal, undismissSignal, pruneStaleDismissals } from '../lib/dismissedSignals';
 import { getSkippedSignals, skipSignal, unskipSignal, pruneStaleSkips } from '../lib/skippedSignals';
@@ -236,17 +237,32 @@ export default function SinyalPage() {
   // deliberately NOT caught here: throwing lets the card show the message next
   // to the fields, instead of the page-level banner that is meant for
   // load/sign-in failures.
-  async function submitRecord(s, { price, lot, filled }) {
+  async function submitRecord(s, { price, lot, filled, tiers }) {
     if (savingRef.current) return;
     savingRef.current = true;
     try {
-      const row = [
-        // Leading "'" forces Sheets to keep this as literal text instead of
-        // silently converting "03-08-2026" into a date serial number (46237).
-        `'${todayDDMMYYYY()}`, s.stock, price, s.sl, s.tp1, s.tp2 || '',
-        filled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${lot ?? '-'}`, s.tradeType || '', s.tag || '',
-      ];
-      await appendValues(sheetId, 'DayTrade_Journal!A:L', [row], token);
+      let row;
+      if (tiers) {
+        // Entry 3 tahap: Entry/Catatan are the lot-weighted average/sum
+        // across only the FILLED tiers (see lib/journalInput.js) so every
+        // other reader of this sheet (P&L, position sizing) keeps working
+        // against one plain number without knowing tiers exist.
+        const { entry, lot: filledLot } = computeWeightedEntryFromTiers(tiers);
+        const status = computeStatusFromTiers(tiers);
+        row = [
+          `'${todayDDMMYYYY()}`, s.stock, entry ?? s.entry, s.sl, s.tp1, s.tp2 || '',
+          status, '', '', `Lot: ${filledLot || '-'}`, s.tradeType || '', s.tag || '',
+          JSON.stringify(tiers),
+        ];
+      } else {
+        row = [
+          // Leading "'" forces Sheets to keep this as literal text instead of
+          // silently converting "03-08-2026" into a date serial number (46237).
+          `'${todayDDMMYYYY()}`, s.stock, price, s.sl, s.tp1, s.tp2 || '',
+          filled ? 'RUNNING' : 'PENDING', '', '', `Lot: ${lot ?? '-'}`, s.tradeType || '', s.tag || '',
+        ];
+      }
+      await appendValues(sheetId, 'DayTrade_Journal!A:M', [row], token);
       setRefreshKey((k) => k + 1);
     } finally {
       savingRef.current = false;
