@@ -56,13 +56,19 @@ describe('SettingsSheet', () => {
     expect(html).toContain('Modal Awal');
     expect(html).toContain('Fee beli (%)');
     expect(html).toContain('Batas kena materai (Rp)');
-    expect(html).toContain('Entry 3 Tahap');
+    expect(html).toContain('DCA');
     expect(html).toContain('Simpan');
     expect(html).toContain('Batal');
   });
 
+  test('entry-tier (%) fields are hidden unless the entry basis is DCA', () => {
+    expect(render({ entryMode: 'mid' })).not.toContain('Entry 3 Tahap');
+    expect(render({ entryMode: 'low' })).not.toContain('Entry 3 Tahap');
+    expect(render({ entryMode: 'dca' })).toContain('Entry 3 Tahap');
+  });
+
   test('entry-tier fields default to 30/30 (bawah computed as 40) when no percentages are passed', () => {
-    const html = render();
+    const html = render({ entryMode: 'dca' });
 
     expect(html).toContain('value="30"');
     // "Bawah" is the disabled, computed third field - 100 - 30 - 30 = 40.
@@ -70,7 +76,7 @@ describe('SettingsSheet', () => {
   });
 
   test('entry-tier fields pre-fill from the given percentages, bawah computed from them', () => {
-    const html = render({ entryTierAtasPercent: 20, entryTierTengahPercent: 35 });
+    const html = render({ entryMode: 'dca', entryTierAtasPercent: 20, entryTierTengahPercent: 35 });
 
     expect(html).toContain('value="20"');
     expect(html).toContain('value="35"');

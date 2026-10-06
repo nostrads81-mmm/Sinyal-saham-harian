@@ -10,6 +10,7 @@ const ENTRY_MODE_OPTIONS = [
   { value: 'low', label: 'Bawah' },
   { value: 'mid', label: 'Tengah' },
   { value: 'high', label: 'Atas' },
+  { value: 'dca', label: 'DCA' },
 ];
 
 const TP_MODE_OPTIONS = [
@@ -236,7 +237,7 @@ export default function SettingsSheet({
               ))}
             </div>
             <p className="field-hint">
-              Harga entry yang dipakai dari rentang buy WA - batas bawah, tengah (rata-rata), atau batas atas.
+              Harga entry yang dipakai dari rentang buy WA - batas bawah, tengah (rata-rata), batas atas, atau DCA (beli bertahap di 3 titik - atur persentasenya di bawah).
             </p>
           </div>
 
@@ -259,40 +260,42 @@ export default function SettingsSheet({
             </p>
           </div>
 
-          <div className="field">
-            <label className="field-label">Entry 3 Tahap (%)</label>
-            <div className="card-row" style={{ gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <p className="field-hint" style={{ margin: '0 0 4px' }}>Atas</p>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  inputMode="numeric"
-                  value={tierAtasInput}
-                  onChange={(e) => setTierAtasInput(e.target.value)}
-                />
+          {entryModeInput === 'dca' && (
+            <div className="field">
+              <label className="field-label">Entry 3 Tahap (%)</label>
+              <div className="card-row" style={{ gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <p className="field-hint" style={{ margin: '0 0 4px' }}>Atas</p>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    inputMode="numeric"
+                    value={tierAtasInput}
+                    onChange={(e) => setTierAtasInput(e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p className="field-hint" style={{ margin: '0 0 4px' }}>Tengah</p>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    inputMode="numeric"
+                    value={tierTengahInput}
+                    onChange={(e) => setTierTengahInput(e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p className="field-hint" style={{ margin: '0 0 4px' }}>Bawah</p>
+                  <input type="number" value={Math.max(0, 100 - (Number(tierAtasInput) || 0) - (Number(tierTengahInput) || 0))} disabled />
+                </div>
               </div>
-              <div style={{ flex: 1 }}>
-                <p className="field-hint" style={{ margin: '0 0 4px' }}>Tengah</p>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  inputMode="numeric"
-                  value={tierTengahInput}
-                  onChange={(e) => setTierTengahInput(e.target.value)}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <p className="field-hint" style={{ margin: '0 0 4px' }}>Bawah</p>
-                <input type="number" value={Math.max(0, 100 - (Number(tierAtasInput) || 0) - (Number(tierTengahInput) || 0))} disabled />
-              </div>
+              <p className="field-hint">
+                Modal tiap sinyal dipecah jadi 3 harga beli (batas atas, tengah, batas bawah rentang buy WA) sesuai persentase ini. "Bawah" otomatis mengambil sisanya supaya selalu total 100%.
+              </p>
             </div>
-            <p className="field-hint">
-              Modal tiap sinyal dipecah jadi 3 harga beli (batas atas, tengah, batas bawah rentang buy WA) sesuai persentase ini. "Bawah" otomatis mengambil sisanya supaya selalu total 100%.
-            </p>
-          </div>
+          )}
         </div>
 
         <div className="settings-section">

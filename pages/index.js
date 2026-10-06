@@ -158,8 +158,13 @@ export default function SinyalPage() {
         // ukuran posisi otomatis mengikuti modal yang sedang berjalan.
         const computedTotalModal = settingsData.capital + sumRealizedPnl(journalEntries, settingsData);
         setTotalModal(computedTotalModal);
+        const tierPercents = {
+          atasPercent: settingsData.entryTierAtasPercent,
+          tengahPercent: settingsData.entryTierTengahPercent,
+          bawahPercent: settingsData.entryTierBawahPercent,
+        };
         const parsed = WATCHLIST_SHEET_ENABLED
-          ? parseWatchlistRows(rawRows, { entryMode: settingsData.entryMode, tpMode: settingsData.tpMode })
+          ? parseWatchlistRows(rawRows, { entryMode: settingsData.entryMode, tpMode: settingsData.tpMode, tierPercents })
           : [];
 
         const watchlistDateByStock = new Map();
@@ -186,6 +191,7 @@ export default function SinyalPage() {
           ...s,
           entryMode: settingsData.entryMode,
           tpMode: settingsData.tpMode,
+          tierPercents,
           watchlistDate: watchlistDateByStock.get(s.stock.trim().toUpperCase()) || null,
         }));
         const { combined, staleWaStocks } = mergeSignalSources(parsed, waBuilt);

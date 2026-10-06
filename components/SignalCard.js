@@ -64,7 +64,11 @@ export default function SignalCard({
   const pos = s.position || null;
   const separateTp = settings && settings.tpMode === 'separate';
   const mainTp = separateTp ? s.tp1 : s.tpMid;
-  const sizableTiers = (s.entryTiers || []).filter((t) => t.lembar > 0);
+  // Tier breakdown/form only make sense when the user actually picked DCA
+  // as their entry basis - any other basis means a single-point buy, so
+  // the suggestion and "Catat order" form shouldn't show three tiers.
+  const isDca = settings && settings.entryMode === 'dca';
+  const sizableTiers = isDca ? (s.entryTiers || []).filter((t) => t.lembar > 0) : [];
 
   function openRecordForm() {
     setRecordPrice(String(s.entry));
@@ -377,12 +381,12 @@ export default function SignalCard({
                     : '⚠ Lot dikurangi dari saran normal, disesuaikan sisa modal'}
                 </span>
               )}
-              {/* Entry 3 tahap: kept inside this already-expanded detail, not
-                  the collapsed card face - three extra rows per card would
-                  make a list of several signals feel noisy for something
-                  that's just a suggestion until "Catat order" is actually
-                  tapped. */}
-              {s.entryTiers && s.entryTiers.some((t) => t.lembar > 0) && (
+              {/* Entry 3 tahap: only when DCA is the chosen entry basis (see
+                  isDca above) - kept inside this already-expanded detail,
+                  not the collapsed card face, since several cards each
+                  showing three extra rows would feel noisy for something
+                  that's just a suggestion until "Catat order" is tapped. */}
+              {isDca && sizableTiers.length > 0 && (
                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--badge-border)' }}>
                   <p className="muted" style={{ marginBottom: 4 }}>Entry 3 tahap</p>
                   {s.entryTiers.map((t) => (
