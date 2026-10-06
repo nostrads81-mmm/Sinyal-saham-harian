@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, resolveInitialToken } from '../lib/auth';
 import {
   getJournalEntries, closeJournalEntry, confirmJournalFill, deleteJournalRow, getSettings, updateSettings,
-  ensureSheetsInitialized, getOrCreateAppDataSheetId, updateJournalEntryTiers,
+  ensureSheetsInitialized, getOrCreateAppDataSheetId, updateJournalEntryTiers, savePartialSells,
 } from '../lib/sheets';
 import { computeTpMid } from '../lib/scoring';
-import { daysHeld, computeNetPnl } from '../lib/pnl';
+import { daysHeld, computeNetPnl, computeEntryTotalPnl, sumPartialSellLot } from '../lib/pnl';
 import SettingsSheet from '../components/SettingsSheet';
 import PositionCard from '../components/PositionCard';
 import { parseHargaInput, parseLotInput, computeWeightedEntryFromTiers, computeStatusFromTiers } from '../lib/journalInput';
@@ -31,6 +31,9 @@ export default function RekapanPage() {
 
   const [closingRow, setClosingRow] = useState(null);
   const [exitPrice, setExitPrice] = useState('');
+  const [partialSellingRow, setPartialSellingRow] = useState(null);
+  const [partialSellPrice, setPartialSellPrice] = useState('');
+  const [partialSellLot, setPartialSellLot] = useState('');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [expandedRow, setExpandedRow] = useState(null);
@@ -123,8 +126,12 @@ export default function RekapanPage() {
     setSaving(true);
     try {
       const exit = parsedExit.value;
-      const lot = parseLotFromCatatan(entry.catatan);
-      const net = computeNetPnl(entry.entry, exit, lot, settings);
+      // Only the lot NOT already sold off via "Jual sebagian" is being
+      // closed here - partial sells already banked their own P&L (see
+      // sumRealizedPnl in lib/pnl.js), so closing against the full
+      // original lot would double-count them.
+      const remainingLot = parseLotFromCatatan(entry.catatan) - sumPartialSellLot(entry.partialSells);
+      const net = computeNetPnl(entry.entry, exit, remainingLot, settings);
       const status = net.pnlPercent >= 0 ? 'CLOSE-PROFIT' : 'CLOSE-LOSS';
       await closeJournalEntry(token, sheetId, entry.rowNumber, {
         tanggalExit: `'${todayDDMMYYYY()}`,
@@ -132,6 +139,54 @@ export default function RekapanPage() {
         status,
       });
       setClosingRow(null);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  function openPartialSellForm(entry) {
+    setPartialSellingRow(entry.rowNumber);
+    setPartialSellPrice(entry.tp1 ? String(entry.tp1) : '');
+    setPartialSellLot('');
+  }
+
+  async function submitPartialSell(entry) {
+    if (savingRef.current) return;
+    const parsedPrice = parseHargaInput(partialSellPrice);
+    const parsedLot = parseLotInput(partialSellLot);
+    if (parsedPrice.error || parsedPrice.value === null) {
+      setError(parsedPrice.error || 'Harga jual wajib diisi');
+      return;
+    }
+    if (parsedLot.error || parsedLot.value === null) {
+      setError(parsedLot.error || 'Jumlah lot wajib diisi');
+      return;
+    }
+    const totalLot = parseLotFromCatatan(entry.catatan);
+    const remainingLot = totalLot - sumPartialSellLot(entry.partialSells);
+    if (parsedLot.value > remainingLot) {
+      setError(`Lot yang dijual tidak boleh lebih dari sisa ${remainingLot} lot`);
+      return;
+    }
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const tanggal = `'${todayDDMMYYYY()}`;
+      const nextSells = [...(entry.partialSells || []), { tanggal, hargaExit: parsedPrice.value, lot: parsedLot.value }];
+      const stillRemaining = remainingLot - parsedLot.value;
+      let closeEntry;
+      if (stillRemaining === 0) {
+        // Sold off the very last of it - close the row outright instead of
+        // leaving a RUNNING position with nothing left to sell.
+        const net = computeNetPnl(entry.entry, parsedPrice.value, parsedLot.value, settings);
+        closeEntry = { tanggalExit: tanggal, hargaExit: parsedPrice.value, status: net.pnlPercent >= 0 ? 'CLOSE-PROFIT' : 'CLOSE-LOSS' };
+      }
+      await savePartialSells(token, sheetId, entry.rowNumber, { partialSells: nextSells, closeEntry });
+      setPartialSellingRow(null);
       setRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e.message);
@@ -261,7 +316,7 @@ export default function RekapanPage() {
     ? entries.filter((e) => e.status === 'RUNNING' || e.status === 'PENDING' || e.status === 'OPEN')
     : [];
   const closedEntries = closed;
-  const closedNet = closed.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLotFromCatatan(e.catatan), settings));
+  const closedNet = closed.map((e) => computeEntryTotalPnl(e, settings));
   const wins = closedNet.filter((n) => n && n.pnlPercent >= 0).length;
   const losses = closedNet.filter((n) => n && n.pnlPercent < 0).length;
   const winRate = closed.length > 0 ? (wins / closed.length) * 100 : null;
@@ -276,7 +331,7 @@ export default function RekapanPage() {
   function winStatsFor(tradeType) {
     const list = closed.filter((e) => e.tradeType === tradeType);
     if (list.length === 0) return null;
-    const net = list.map((e) => computeNetPnl(e.entry, e.hargaExit, parseLotFromCatatan(e.catatan), settings));
+    const net = list.map((e) => computeEntryTotalPnl(e, settings));
     const w = net.filter((n) => n && n.pnlPercent >= 0).length;
     return { winRate: (w / list.length) * 100, wins: w, losses: list.length - w, total: list.length };
   }
@@ -397,7 +452,10 @@ export default function RekapanPage() {
 
 {settings && runningEntries.map((e) => {
         const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
-        const lot = parseLotFromCatatan(e.catatan);
+        // The lot shown/acted on here is what's LEFT to sell - the original
+        // bought lot (Catatan) minus whatever's already gone via "Jual
+        // sebagian" (see lib/pnl.js's sumPartialSellLot).
+        const lot = parseLotFromCatatan(e.catatan) - sumPartialSellLot(e.partialSells);
         const expanded = expandedRow === e.rowNumber;
         return (
           <PositionCard
@@ -410,6 +468,7 @@ export default function RekapanPage() {
               expanded,
               confirming: confirmingRow === e.rowNumber,
               closing: closingRow === e.rowNumber,
+              partialSelling: partialSellingRow === e.rowNumber,
               menuOpen: menuRow === e.rowNumber,
               tvOpen: tvOpen.has(e.rowNumber),
               cancelling,
@@ -418,6 +477,8 @@ export default function RekapanPage() {
               confirmPrice,
               confirmLot,
               exitPrice,
+              partialSellPrice,
+              partialSellLot,
             }}
             actions={{
               onToggleExpand: () => { setExpandedRow(expanded ? null : e.rowNumber); setMenuRow(null); },
@@ -425,12 +486,16 @@ export default function RekapanPage() {
               onToggleTv: () => toggleTv(e.rowNumber),
               onStartConfirm: () => openConfirmForm(e),
               onStartClose: () => openCloseForm(e),
-              onCancelForm: () => { setConfirmingRow(null); setClosingRow(null); },
+              onStartPartialSell: () => openPartialSellForm(e),
+              onCancelForm: () => { setConfirmingRow(null); setClosingRow(null); setPartialSellingRow(null); },
               onConfirmPriceChange: setConfirmPrice,
               onConfirmLotChange: setConfirmLot,
               onExitPriceChange: setExitPrice,
+              onPartialSellPriceChange: setPartialSellPrice,
+              onPartialSellLotChange: setPartialSellLot,
               onSubmitConfirm: () => submitConfirmFill(e),
               onSubmitClose: () => submitClose(e),
+              onSubmitPartialSell: () => submitPartialSell(e),
               onCancelOrder: () => { setMenuRow(null); cancelOrder(e); },
               onCancelTier: (label) => cancelTier(e, label),
             }}
@@ -455,7 +520,7 @@ export default function RekapanPage() {
           {showClosed && closedEntries.map((e) => {
             const badge = STATUS_BADGE[e.status] || { cls: 'badge', label: e.status.toLowerCase() };
             const lot = parseLotFromCatatan(e.catatan);
-            const net = computeNetPnl(e.entry, e.hargaExit, lot, settings);
+            const net = computeEntryTotalPnl(e, settings);
             const held = daysHeld(e.tanggalEntry, e.tanggalExit);
             const expanded = expandedRow === e.rowNumber;
             return (

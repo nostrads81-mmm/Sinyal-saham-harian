@@ -72,10 +72,17 @@ export default function PositionCard({
             Konfirmasi fill
           </button>
         )}
-        {!isPending && !ui.closing && (
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={actions.onStartClose}>
-            Tutup posisi
-          </button>
+        {!isPending && !ui.closing && !ui.partialSelling && (
+          <>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={actions.onStartClose}>
+              Tutup posisi
+            </button>
+            {lot > 1 && (
+              <button className="btn" onClick={actions.onStartPartialSell}>
+                Jual sebagian
+              </button>
+            )}
+          </>
         )}
         <button
           type="button"
@@ -125,6 +132,21 @@ export default function PositionCard({
               TP1 <span className="text-success">{e.tp1.toLocaleString('id-ID')}</span>
               {e.tp2 != null && <> · TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></>}
             </p>
+          )}
+          {/* History of "Jual sebagian" - each partial sell banks its own
+              realized P&L immediately (see lib/pnl.js's sumRealizedPnl),
+              shown here so it's clear how much of the original lot is
+              already sold off vs. still open at the top of this card. */}
+          {e.partialSells && e.partialSells.length > 0 && (
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+              <p className="muted" style={{ marginBottom: 4 }}>Sudah dijual sebagian</p>
+              {e.partialSells.map((p, i) => (
+                <div key={i} className="pb-row" style={{ marginTop: 2 }}>
+                  <span className="muted">{p.tanggal?.replace(/^'/, '')} · {p.lot} lot</span>
+                  <span>{p.hargaExit.toLocaleString('id-ID')}</span>
+                </div>
+              ))}
+            </div>
           )}
           {/* Per-tier breakdown (entry 3 tahap) - a tier still PENDING can be
               cancelled on its own without touching the others (e.g. price
@@ -205,6 +227,41 @@ export default function PositionCard({
               style={{ flex: 1 }}
               onClick={actions.onSubmitClose}
               disabled={ui.saving || !ui.exitPrice}
+            >
+              {ui.saving ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {ui.partialSelling && (
+        <div className="detail-block" style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+          <p className="muted" style={{ marginBottom: 4 }}>Harga jual</p>
+          <input
+            type="number"
+            value={ui.partialSellPrice}
+            onChange={(ev) => actions.onPartialSellPriceChange(ev.target.value)}
+            style={{ marginBottom: 8 }}
+          />
+          <p className="muted" style={{ marginBottom: 4 }}>Jumlah (lot) - sisa {lot} lot</p>
+          <input
+            type="number"
+            value={ui.partialSellLot}
+            onChange={(ev) => actions.onPartialSellLotChange(ev.target.value)}
+            style={{ marginBottom: 8 }}
+          />
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Kalau lot yang dijual sama dengan sisa lot, posisi ini otomatis ditutup penuh.
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" style={{ flex: 1 }} onClick={actions.onCancelForm} disabled={ui.saving}>
+              Batal
+            </button>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              onClick={actions.onSubmitPartialSell}
+              disabled={ui.saving || !ui.partialSellPrice || !ui.partialSellLot}
             >
               {ui.saving ? 'Menyimpan...' : 'Simpan'}
             </button>

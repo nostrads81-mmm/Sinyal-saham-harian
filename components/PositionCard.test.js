@@ -136,4 +136,26 @@ describe('PositionCard', () => {
     const html = card({ ui: { expanded: true } });
     expect(html).not.toContain('Entry 3 tahap');
   });
+
+  test('"Jual sebagian" button only shows for a running position with more than 1 lot', () => {
+    expect(card({ lot: 5 })).toContain('Jual sebagian');
+    expect(card({ lot: 1 })).not.toContain('Jual sebagian');
+    expect(card({ entry: { status: 'PENDING' }, lot: 5 })).not.toContain('Jual sebagian');
+  });
+
+  test('expanded detail shows partial-sell history when recorded', () => {
+    const partialSells = [{ tanggal: "'01-10-2026", hargaExit: 3100, lot: 2 }];
+    const html = card({ entry: { partialSells }, ui: { expanded: true } });
+
+    expect(html).toContain('Sudah dijual sebagian');
+    expect(html).toContain('2 lot');
+    expect(html).toContain('3.100');
+  });
+
+  test('the partial-sell form asks for price and lot, shows remaining lot', () => {
+    const html = card({ lot: 5, ui: { partialSelling: true, partialSellPrice: '3100', partialSellLot: '2' } });
+
+    expect(html).toContain('Harga jual');
+    expect(html).toContain('sisa 5 lot');
+  });
 });
