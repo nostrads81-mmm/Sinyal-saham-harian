@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, resolveInitialToken } from '../lib/auth';
 import {
   getJournalEntries, closeJournalEntry, confirmJournalFill, deleteJournalRow, getSettings, updateSettings,
-  ensureSheetsInitialized, getOrCreateAppDataSheetId,
+  ensureSheetsInitialized, getOrCreateAppDataSheetId, updateJournalEntryTiers,
 } from '../lib/sheets';
 import { computeTpMid } from '../lib/scoring';
 import { daysHeld, computeNetPnl } from '../lib/pnl';
 import SettingsSheet from '../components/SettingsSheet';
 import PositionCard from '../components/PositionCard';
-import { parseHargaInput, parseLotInput } from '../lib/journalInput';
+import { parseHargaInput, parseLotInput, computeWeightedEntryFromTiers, computeStatusFromTiers } from '../lib/journalInput';
 import { formatRupiah, formatRupiahRingkas, todayDDMMYYYY, parseLotFromCatatan } from '../lib/format';
 
 const STATUS_BADGE = {
@@ -53,6 +53,7 @@ export default function RekapanPage() {
   const [confirmPrice, setConfirmPrice] = useState('');
   const [confirmLot, setConfirmLot] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [tierCancelling, setTierCancelling] = useState(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -181,6 +182,33 @@ export default function RekapanPage() {
       setError(e.message);
     } finally {
       setCancelling(false);
+    }
+  }
+
+  // Cancels ONE tier of an entry-3-tahap position (e.g. the "bawah" order
+  // never got filled) without touching the others still pending/filled.
+  // Entry/Catatan/Status are recomputed from the remaining tiers every
+  // time - see lib/journalInput.js - so the position's numbers always
+  // reflect only what was actually bought.
+  async function cancelTier(entry, label) {
+    if (!entry.entryTiers) return;
+    setTierCancelling({ rowNumber: entry.rowNumber, label });
+    try {
+      const nextTiers = entry.entryTiers.map((t) => (
+        t.label === label ? { ...t, status: 'CANCELLED', fillPrice: null, fillLot: null } : t
+      ));
+      const { entry: weightedEntry, lot: filledLot } = computeWeightedEntryFromTiers(nextTiers);
+      await updateJournalEntryTiers(token, sheetId, entry.rowNumber, {
+        entryTiers: nextTiers,
+        entry: weightedEntry ?? entry.entry,
+        lot: filledLot,
+        status: computeStatusFromTiers(nextTiers),
+      });
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setTierCancelling(null);
     }
   }
 
@@ -385,6 +413,7 @@ export default function RekapanPage() {
               menuOpen: menuRow === e.rowNumber,
               tvOpen: tvOpen.has(e.rowNumber),
               cancelling,
+              tierCancelling: tierCancelling?.rowNumber === e.rowNumber ? tierCancelling.label : null,
               saving,
               confirmPrice,
               confirmLot,
@@ -403,6 +432,7 @@ export default function RekapanPage() {
               onSubmitConfirm: () => submitConfirmFill(e),
               onSubmitClose: () => submitClose(e),
               onCancelOrder: () => { setMenuRow(null); cancelOrder(e); },
+              onCancelTier: (label) => cancelTier(e, label),
             }}
           />
         );

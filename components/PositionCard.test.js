@@ -113,4 +113,27 @@ describe('PositionCard', () => {
     expect(html).toContain('Jumlah (lot)');
     expect(html).toContain('Sudah ke-fill');
   });
+
+  test('expanded detail shows the entry-tier breakdown with a cancel button only on PENDING tiers', () => {
+    const entryTiers = [
+      { label: 'atas', status: 'FILLED', targetPrice: 120, targetLot: 2500, fillPrice: 118, fillLot: 2500 },
+      { label: 'tengah', status: 'PENDING', targetPrice: 110, targetLot: 2500, fillPrice: null, fillLot: null },
+      { label: 'bawah', status: 'CANCELLED', targetPrice: 100, targetLot: 4000, fillPrice: null, fillLot: null },
+    ];
+    const html = card({ entry: { entryTiers }, ui: { expanded: true } });
+
+    expect(html).toContain('Entry 3 tahap');
+    expect(html).toContain('118'); // atas shows its actual fill price, not the target
+    expect(html).toContain('terisi');
+    expect(html).toContain('nunggu fill');
+    expect(html).toContain('dibatalkan');
+    // Only the one PENDING tier ("tengah") gets a cancel button.
+    expect(html.match(/aria-label="Batalkan tahap/g)).toHaveLength(1);
+    expect(html).toContain('Batalkan tahap tengah');
+  });
+
+  test('no entry-tier section at all for a plain single-entry row', () => {
+    const html = card({ ui: { expanded: true } });
+    expect(html).not.toContain('Entry 3 tahap');
+  });
 });

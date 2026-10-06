@@ -126,6 +126,37 @@ export default function PositionCard({
               {e.tp2 != null && <> · TP2 <span className="text-success">{e.tp2.toLocaleString('id-ID')}</span></>}
             </p>
           )}
+          {/* Per-tier breakdown (entry 3 tahap) - a tier still PENDING can be
+              cancelled on its own without touching the others (e.g. price
+              never came back down to "bawah"), which is the whole reason
+              the three are tracked separately instead of one lump entry. */}
+          {e.entryTiers && e.entryTiers.length > 0 && (
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+              <p className="muted" style={{ marginBottom: 4 }}>Entry 3 tahap</p>
+              {e.entryTiers.map((t) => (
+                <div key={t.label} className="pb-row" style={{ marginTop: 4 }}>
+                  <span style={{ textTransform: 'capitalize' }}>
+                    {t.label} · {(t.status === 'FILLED' ? t.fillPrice : t.targetPrice)?.toLocaleString('id-ID')}
+                    <span className="muted">
+                      {' '}· {Math.round((t.status === 'FILLED' ? t.fillLot : t.targetLot) / 100)} lot
+                      {' '}· {t.status === 'FILLED' ? 'terisi' : t.status === 'CANCELLED' ? 'dibatalkan' : 'nunggu fill'}
+                    </span>
+                  </span>
+                  {t.status === 'PENDING' && (
+                    <button
+                      type="button"
+                      className="btn icon-btn-sm"
+                      onClick={() => actions.onCancelTier(t.label)}
+                      disabled={ui.tierCancelling === t.label}
+                      aria-label={`Batalkan tahap ${t.label}`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
