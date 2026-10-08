@@ -67,7 +67,10 @@ export default function PositionCard({
       )}
 
       <div className="card-actions">
-        {isPending && !ui.confirming && (
+        {/* A tiered (Entry 3 tahap) order is filled one tier at a time below
+            instead - one lump "Konfirmasi fill" here would overwrite the
+            whole position with a single price/lot, ignoring the tiers. */}
+        {isPending && !ui.confirming && !(e.entryTiers && e.entryTiers.length > 0) && (
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={actions.onStartConfirm}>
             Konfirmasi fill
           </button>
@@ -149,31 +152,75 @@ export default function PositionCard({
             </div>
           )}
           {/* Per-tier breakdown (entry 3 tahap) - a tier still PENDING can be
-              cancelled on its own without touching the others (e.g. price
-              never came back down to "bawah"), which is the whole reason
-              the three are tracked separately instead of one lump entry. */}
+              filled (once the broker actually fills it) or cancelled (e.g.
+              price never came back down to "bawah") on its own without
+              touching the others, which is the whole reason the three are
+              tracked separately instead of one lump entry. */}
           {e.entryTiers && e.entryTiers.length > 0 && (
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
               <p className="muted" style={{ marginBottom: 4 }}>Entry 3 tahap</p>
               {e.entryTiers.map((t) => (
-                <div key={t.label} className="pb-row" style={{ marginTop: 4 }}>
-                  <span style={{ textTransform: 'capitalize' }}>
-                    {t.label} · {(t.status === 'FILLED' ? t.fillPrice : t.targetPrice)?.toLocaleString('id-ID')}
-                    <span className="muted">
-                      {' '}· {Math.round((t.status === 'FILLED' ? t.fillLot : t.targetLot) / 100)} lot
-                      {' '}· {t.status === 'FILLED' ? 'terisi' : t.status === 'CANCELLED' ? 'dibatalkan' : 'nunggu fill'}
+                <div key={t.label}>
+                  <div className="pb-row" style={{ marginTop: 4 }}>
+                    <span style={{ textTransform: 'capitalize' }}>
+                      {t.label} · {(t.status === 'FILLED' ? t.fillPrice : t.targetPrice)?.toLocaleString('id-ID')}
+                      <span className="muted">
+                        {' '}· {Math.round((t.status === 'FILLED' ? t.fillLot : t.targetLot) / 100)} lot
+                        {' '}· {t.status === 'FILLED' ? 'terisi' : t.status === 'CANCELLED' ? 'dibatalkan' : 'nunggu fill'}
+                      </span>
                     </span>
-                  </span>
-                  {t.status === 'PENDING' && (
-                    <button
-                      type="button"
-                      className="btn icon-btn-sm"
-                      onClick={() => actions.onCancelTier(t.label)}
-                      disabled={ui.tierCancelling === t.label}
-                      aria-label={`Batalkan tahap ${t.label}`}
-                    >
-                      ✕
-                    </button>
+                    {t.status === 'PENDING' && ui.tierFilling !== t.label && (
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          type="button"
+                          className="btn icon-btn-sm"
+                          onClick={() => actions.onStartFillTier(t.label)}
+                          aria-label={`Fill tahap ${t.label}`}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          className="btn icon-btn-sm"
+                          onClick={() => actions.onCancelTier(t.label)}
+                          disabled={ui.tierCancelling === t.label}
+                          aria-label={`Batalkan tahap ${t.label}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {ui.tierFilling === t.label && (
+                    <div style={{ marginTop: 6, marginBottom: 4 }}>
+                      <p className="muted" style={{ marginBottom: 4 }}>Harga fill aktual</p>
+                      <input
+                        type="number"
+                        value={ui.tierFillPrice}
+                        onChange={(ev) => actions.onTierFillPriceChange(ev.target.value)}
+                        style={{ marginBottom: 8 }}
+                      />
+                      <p className="muted" style={{ marginBottom: 4 }}>Jumlah (lot)</p>
+                      <input
+                        type="number"
+                        value={ui.tierFillLot}
+                        onChange={(ev) => actions.onTierFillLotChange(ev.target.value)}
+                        style={{ marginBottom: 8 }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn" style={{ flex: 1 }} onClick={actions.onCancelTierFill} disabled={ui.saving}>
+                          Batal
+                        </button>
+                        <button
+                          className="btn btn-primary"
+                          style={{ flex: 1 }}
+                          onClick={() => actions.onSubmitFillTier(t.label)}
+                          disabled={ui.saving || !ui.tierFillPrice || !ui.tierFillLot}
+                        >
+                          {ui.saving ? 'Menyimpan...' : 'Sudah ke-fill'}
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}

@@ -130,6 +130,31 @@ describe('PositionCard', () => {
     // Only the one PENDING tier ("tengah") gets a cancel button.
     expect(html.match(/aria-label="Batalkan tahap/g)).toHaveLength(1);
     expect(html).toContain('Batalkan tahap tengah');
+    // ...and the same tier is the only one offered a fill button.
+    expect(html.match(/aria-label="Fill tahap/g)).toHaveLength(1);
+    expect(html).toContain('Fill tahap tengah');
+  });
+
+  test('tapping fill on a PENDING tier opens its own price/lot form', () => {
+    const entryTiers = [
+      { label: 'tengah', status: 'PENDING', targetPrice: 110, targetLot: 2500, fillPrice: null, fillLot: null },
+    ];
+    const html = card({
+      entry: { entryTiers },
+      ui: { expanded: true, tierFilling: 'tengah', tierFillPrice: '108', tierFillLot: '25' },
+    });
+
+    expect(html).toContain('Harga fill aktual');
+    expect(html).toContain('Sudah ke-fill');
+  });
+
+  test('a PENDING tiered order has no single lump "Konfirmasi fill" button', () => {
+    const entryTiers = [
+      { label: 'atas', status: 'PENDING', targetPrice: 120, targetLot: 2500, fillPrice: null, fillLot: null },
+    ];
+    const html = card({ entry: { status: 'PENDING', entryTiers } });
+
+    expect(html).not.toContain('Konfirmasi fill');
   });
 
   test('no entry-tier section at all for a plain single-entry row', () => {

@@ -59,6 +59,9 @@ export default function RekapanPage() {
   const [confirmLot, setConfirmLot] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [tierCancelling, setTierCancelling] = useState(null);
+  const [tierFilling, setTierFilling] = useState(null); // { rowNumber, label }
+  const [tierFillPrice, setTierFillPrice] = useState('');
+  const [tierFillLot, setTierFillLot] = useState('');
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -266,6 +269,54 @@ export default function RekapanPage() {
       setError(e.message);
     } finally {
       setTierCancelling(null);
+    }
+  }
+
+  function openFillTierForm(entry, label) {
+    const tier = entry.entryTiers.find((t) => t.label === label);
+    setTierFilling({ rowNumber: entry.rowNumber, label });
+    setTierFillPrice(String(tier.targetPrice));
+    setTierFillLot(String(Math.round(tier.targetLot / 100)));
+  }
+
+  // Marks ONE tier of an entry-3-tahap position as actually filled at the
+  // broker - mirrors cancelTier (same recompute-from-tiers-then-write
+  // path), except this tier gets a real fillPrice/fillLot instead of being
+  // dropped. The other tiers (filled, pending, or cancelled) are untouched.
+  async function submitFillTier(entry, label) {
+    if (savingRef.current) return;
+    const parsedPrice = parseHargaInput(tierFillPrice);
+    const parsedLot = parseLotInput(tierFillLot);
+    if (parsedPrice.error || parsedPrice.value === null) {
+      setError(parsedPrice.error || 'Harga fill wajib diisi');
+      return;
+    }
+    if (parsedLot.error || parsedLot.value === null) {
+      setError(parsedLot.error || 'Jumlah lot wajib diisi');
+      return;
+    }
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const nextTiers = entry.entryTiers.map((t) => (
+        t.label === label
+          ? { ...t, status: 'FILLED', fillPrice: parsedPrice.value, fillLot: parsedLot.value * 100 }
+          : t
+      ));
+      const { entry: weightedEntry, lot: filledLot } = computeWeightedEntryFromTiers(nextTiers);
+      await updateJournalEntryTiers(token, sheetId, entry.rowNumber, {
+        entryTiers: nextTiers,
+        entry: weightedEntry ?? entry.entry,
+        lot: filledLot,
+        status: computeStatusFromTiers(nextTiers),
+      });
+      setTierFilling(null);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   }
 
@@ -500,12 +551,15 @@ export default function RekapanPage() {
               tvOpen: tvOpen.has(e.rowNumber),
               cancelling,
               tierCancelling: tierCancelling?.rowNumber === e.rowNumber ? tierCancelling.label : null,
+              tierFilling: tierFilling?.rowNumber === e.rowNumber ? tierFilling.label : null,
               saving,
               confirmPrice,
               confirmLot,
               exitPrice,
               partialSellPrice,
               partialSellLot,
+              tierFillPrice,
+              tierFillLot,
             }}
             actions={{
               onToggleExpand: () => { setExpandedRow(expanded ? null : e.rowNumber); setMenuRow(null); },
@@ -525,6 +579,11 @@ export default function RekapanPage() {
               onSubmitPartialSell: () => submitPartialSell(e),
               onCancelOrder: () => { setMenuRow(null); cancelOrder(e); },
               onCancelTier: (label) => cancelTier(e, label),
+              onStartFillTier: (label) => openFillTierForm(e, label),
+              onCancelTierFill: () => setTierFilling(null),
+              onTierFillPriceChange: setTierFillPrice,
+              onTierFillLotChange: setTierFillLot,
+              onSubmitFillTier: (label) => submitFillTier(e, label),
             }}
           />
         );
