@@ -253,7 +253,12 @@ export default function SinyalPage() {
         // across only the FILLED tiers (see lib/journalInput.js) so every
         // other reader of this sheet (P&L, position sizing) keeps working
         // against one plain number without knowing tiers exist.
-        const { entry, lot: filledLot } = computeWeightedEntryFromTiers(tiers);
+        const { entry, lot: filledLembar } = computeWeightedEntryFromTiers(tiers);
+        // computeWeightedEntryFromTiers answers in lembar (shares) - same
+        // unit as fillLot/targetLot - but Catatan's "Lot: N" convention
+        // (parseLotFromCatatan, read everywhere else) is lot count, 1 lot =
+        // 100 lembar, so it has to be converted here before being written.
+        const filledLot = filledLembar ? Math.round(filledLembar / 100) : null;
         const status = computeStatusFromTiers(tiers);
         row = [
           `'${todayDDMMYYYY()}`, s.stock, entry ?? s.entry, s.sl, s.tp1, s.tp2 || '',

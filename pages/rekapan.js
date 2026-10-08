@@ -258,11 +258,13 @@ export default function RekapanPage() {
       const nextTiers = entry.entryTiers.map((t) => (
         t.label === label ? { ...t, status: 'CANCELLED', fillPrice: null, fillLot: null } : t
       ));
-      const { entry: weightedEntry, lot: filledLot } = computeWeightedEntryFromTiers(nextTiers);
+      // computeWeightedEntryFromTiers answers in lembar (shares, same unit
+      // as fillLot) - Catatan's "Lot: N" is lot count, 100 lembar each.
+      const { entry: weightedEntry, lot: filledLembar } = computeWeightedEntryFromTiers(nextTiers);
       await updateJournalEntryTiers(token, sheetId, entry.rowNumber, {
         entryTiers: nextTiers,
         entry: weightedEntry ?? entry.entry,
-        lot: filledLot,
+        lot: Math.round(filledLembar / 100),
         status: computeStatusFromTiers(nextTiers),
       });
       setRefreshKey((k) => k + 1);
@@ -304,11 +306,13 @@ export default function RekapanPage() {
           ? { ...t, status: 'FILLED', fillPrice: parsedPrice.value, fillLot: parsedLot.value * 100 }
           : t
       ));
-      const { entry: weightedEntry, lot: filledLot } = computeWeightedEntryFromTiers(nextTiers);
+      // computeWeightedEntryFromTiers answers in lembar (shares, same unit
+      // as fillLot) - Catatan's "Lot: N" is lot count, 100 lembar each.
+      const { entry: weightedEntry, lot: filledLembar } = computeWeightedEntryFromTiers(nextTiers);
       await updateJournalEntryTiers(token, sheetId, entry.rowNumber, {
         entryTiers: nextTiers,
         entry: weightedEntry ?? entry.entry,
-        lot: filledLot,
+        lot: Math.round(filledLembar / 100),
         status: computeStatusFromTiers(nextTiers),
       });
       setTierFilling(null);
