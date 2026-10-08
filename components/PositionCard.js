@@ -160,8 +160,8 @@ export default function PositionCard({
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
               <p className="muted" style={{ marginBottom: 4 }}>Entry 3 tahap</p>
               {e.entryTiers.map((t) => (
-                <div key={t.label}>
-                  <div className="pb-row" style={{ marginTop: 4 }}>
+                <div key={t.label} style={{ marginTop: 10 }}>
+                  <div className="pb-row">
                     <span style={{ textTransform: 'capitalize' }}>
                       {t.label} · {(t.status === 'FILLED' ? t.fillPrice : t.targetPrice)?.toLocaleString('id-ID')}
                       <span className="muted">
@@ -169,28 +169,34 @@ export default function PositionCard({
                         {' '}· {t.status === 'FILLED' ? 'terisi' : t.status === 'CANCELLED' ? 'dibatalkan' : 'nunggu fill'}
                       </span>
                     </span>
-                    {t.status === 'PENDING' && ui.tierFilling !== t.label && (
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button
-                          type="button"
-                          className="btn icon-btn-sm"
-                          onClick={() => actions.onStartFillTier(t.label)}
-                          aria-label={`Fill tahap ${t.label}`}
-                        >
-                          ✓
-                        </button>
-                        <button
-                          type="button"
-                          className="btn icon-btn-sm"
-                          onClick={() => actions.onCancelTier(t.label)}
-                          disabled={ui.tierCancelling === t.label}
-                          aria-label={`Batalkan tahap ${t.label}`}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
                   </div>
+                  {/* Full-size, clearly-labelled, well-apart buttons - these
+                      used to be a cramped pair of ✓/✕ icons easy to fat-finger
+                      the wrong one on, for an action ("Fill"/cancel tier)
+                      that isn't trivially undoable. */}
+                  {t.status === 'PENDING' && ui.tierFilling !== t.label && (
+                    <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ flex: 1 }}
+                        onClick={() => actions.onStartFillTier(t.label)}
+                        aria-label={`Fill tahap ${t.label}`}
+                      >
+                        Fill
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ flex: 1 }}
+                        onClick={() => actions.onCancelTier(t.label)}
+                        disabled={ui.tierCancelling === t.label}
+                        aria-label={`Batalkan tahap ${t.label}`}
+                      >
+                        Batalkan
+                      </button>
+                    </div>
+                  )}
                   {ui.tierFilling === t.label && (
                     <div style={{ marginTop: 6, marginBottom: 4 }}>
                       <p className="muted" style={{ marginBottom: 4 }}>Harga fill aktual</p>

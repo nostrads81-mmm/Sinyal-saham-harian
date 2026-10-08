@@ -252,6 +252,7 @@ export default function RekapanPage() {
   // reflect only what was actually bought.
   async function cancelTier(entry, label) {
     if (!entry.entryTiers) return;
+    if (!window.confirm(`Batalkan tahap ${label} untuk ${entry.stock}? Order tahap ini dianggap tidak jadi dibeli.`)) return;
     setTierCancelling({ rowNumber: entry.rowNumber, label });
     try {
       const nextTiers = entry.entryTiers.map((t) => (
