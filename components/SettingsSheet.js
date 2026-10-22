@@ -46,6 +46,7 @@ export default function SettingsSheet({
   entryMode, tpMode, onSave, saving,
   modalHistory, onSubmitModalTransaction,
   entryTierAtasPercent, entryTierTengahPercent,
+  onResetData, resetting,
 }) {
   const [capitalInput, setCapitalInput] = useState(String(capital));
   const [riskInput, setRiskInput] = useState(riskFractionToDisplay(riskPercent));
@@ -101,6 +102,21 @@ export default function SettingsSheet({
     } finally {
       setModalTxSaving(false);
     }
+  }
+
+  // Wipes every trade/signal/modal record - irreversible, and nothing else
+  // in this app deletes that much at once, so a plain window.confirm (what
+  // every other destructive action here uses) isn't enough on its own:
+  // requiring the exact word "HAPUS" typed back makes an accidental tap
+  // impossible to follow through on.
+  function handleResetData() {
+    if (!window.confirm(
+      'Reset SEMUA data Rekapan (jurnal), Sinyal (daftar sinyal), dan riwayat Tambah/Kurang Modal? '
+      + 'Tindakan ini TIDAK BISA dibatalkan. Pengaturan (modal awal, fee, dll) tidak ikut terhapus.'
+    )) return;
+    const typed = window.prompt('Ketik HAPUS (huruf besar semua) untuk konfirmasi:');
+    if (typed !== 'HAPUS') return;
+    onResetData();
   }
 
   function chooseTheme(next) {
@@ -413,6 +429,28 @@ export default function SettingsSheet({
             </div>
           </div>
         </div>
+
+        {onResetData && (
+          <div className="settings-section">
+            <p className="settings-section-title">⚠️ Zona Berbahaya</p>
+            <div className="field">
+              <label className="field-label">Reset Data</label>
+              <p className="field-hint">
+                Menghapus semua data Rekapan (jurnal trading), Sinyal (daftar sinyal WA), dan riwayat
+                Tambah/Kurang Modal. Pengaturan ini sendiri (modal awal, fee, basis entry, dll) tidak ikut
+                terhapus. Tindakan ini tidak bisa dibatalkan.
+              </p>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleResetData}
+                disabled={resetting}
+              >
+                {resetting ? 'Menghapus...' : 'Reset Semua Data'}
+              </button>
+            </div>
+          </div>
+        )}
         </div>
 
         <div className="sheet-actions">

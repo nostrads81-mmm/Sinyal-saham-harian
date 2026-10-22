@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, resolveInitialToken, signOut } from '../lib/auth';
 import {
   getValues, appendValues, ensureSheetsInitialized, getOrCreateAppDataSheetId, getSettings, updateSettings,
-  getActiveJournalSummary, getJournalEntries, getModalHistory, addModalTransaction,
+  getActiveJournalSummary, getJournalEntries, getModalHistory, addModalTransaction, resetAllData,
   getWaSignalRows, addWaSignalRows, removeWaSignalRow,
   pruneStaleWaSignalRows, WATCHLIST_SHEET_ID, WATCHLIST_RANGE,
 } from '../lib/sheets';
@@ -89,6 +89,7 @@ export default function SinyalPage() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [resettingData, setResettingData] = useState(false);
 
   // Each Google account gets its own auto-created spreadsheet for
   // Settings/DayTrade_Journal - resolved once per sign-in, then reused for
@@ -420,6 +421,19 @@ export default function SinyalPage() {
     }
   }
 
+  async function resetData() {
+    setResettingData(true);
+    try {
+      await resetAllData(token, sheetId);
+      setSettingsOpen(false);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setResettingData(false);
+    }
+  }
+
   async function submitModalTransaction({ jumlah, keterangan }) {
     setSettingsSaving(true);
     try {
@@ -655,6 +669,8 @@ export default function SinyalPage() {
         saving={settingsSaving}
         modalHistory={modalHistory}
         onSubmitModalTransaction={submitModalTransaction}
+        onResetData={resetData}
+        resetting={resettingData}
       />
 
       <div className="wa-paste-zone-wrap">

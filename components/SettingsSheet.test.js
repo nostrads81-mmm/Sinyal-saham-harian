@@ -99,6 +99,87 @@ describe('SettingsSheet', () => {
     expect(html).toContain('value="0.25"');
   });
 
+  test('shows "Reset Semua Data" only when a handler is provided', () => {
+    expect(render()).not.toContain('Reset Semua Data');
+
+    const html = render({ onResetData: () => {} });
+    expect(html).toContain('Zona Berbahaya');
+    expect(html).toContain('Reset Semua Data');
+  });
+
+  // Nothing else in this app wipes this much at once, so a plain confirm()
+  // isn't trusted on its own - the handler also needs "HAPUS" typed back
+  // via prompt() before it calls through.
+  describe('Reset Data confirmation gate', () => {
+    const realConfirm = window.confirm;
+    const realPrompt = window.prompt;
+    afterEach(() => {
+      window.confirm = realConfirm;
+      window.prompt = realPrompt;
+    });
+
+    function clickReset(onResetData) {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = createRoot(container);
+      act(() => {
+        root.render(
+          <SettingsSheet
+            open
+            onClose={() => {}}
+            capital={350_000_000}
+            riskPercent={0.005}
+            maxSlots={10}
+            buyFeePercent={0.0015}
+            sellFeePercent={0.0025}
+            materaiAmount={10000}
+            materaiThreshold={10000000}
+            entryMode="mid"
+            tpMode="mid"
+            onSave={() => {}}
+            saving={false}
+            onResetData={onResetData}
+          />
+        );
+      });
+      const button = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Reset Semua Data');
+      act(() => { button.click(); });
+      act(() => { root.unmount(); });
+      container.remove();
+    }
+
+    test('does nothing if the confirm dialog is declined', () => {
+      window.confirm = jest.fn(() => false);
+      window.prompt = jest.fn();
+      const onResetData = jest.fn();
+
+      clickReset(onResetData);
+
+      expect(window.prompt).not.toHaveBeenCalled();
+      expect(onResetData).not.toHaveBeenCalled();
+    });
+
+    test('does nothing if "HAPUS" is not typed exactly', () => {
+      window.confirm = jest.fn(() => true);
+      window.prompt = jest.fn(() => 'hapus');
+      const onResetData = jest.fn();
+
+      clickReset(onResetData);
+
+      expect(onResetData).not.toHaveBeenCalled();
+    });
+
+    test('calls through once confirmed and "HAPUS" is typed', () => {
+      window.confirm = jest.fn(() => true);
+      window.prompt = jest.fn(() => 'HAPUS');
+      const onResetData = jest.fn();
+
+      clickReset(onResetData);
+
+      expect(onResetData).toHaveBeenCalledTimes(1);
+    });
+  });
+
   test('renders nothing when closed', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

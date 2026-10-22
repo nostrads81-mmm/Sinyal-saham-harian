@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getAccessToken, resolveInitialToken } from '../lib/auth';
 import {
   getJournalEntries, closeJournalEntry, confirmJournalFill, deleteJournalRow, getSettings, updateSettings,
-  ensureSheetsInitialized, getOrCreateAppDataSheetId, updateJournalEntryTiers, savePartialSells,
+  ensureSheetsInitialized, getOrCreateAppDataSheetId, updateJournalEntryTiers, savePartialSells, resetAllData,
 } from '../lib/sheets';
 import { computeTpMid } from '../lib/scoring';
 import { daysHeld, computeNetPnl, computeEntryTotalPnl, sumPartialSellLot } from '../lib/pnl';
@@ -65,6 +65,7 @@ export default function RekapanPage() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [resettingData, setResettingData] = useState(false);
 
   const [sheetId, setSheetId] = useState(null);
 
@@ -349,6 +350,19 @@ export default function RekapanPage() {
     }
   }
 
+  async function resetData() {
+    setResettingData(true);
+    try {
+      await resetAllData(token, sheetId);
+      setSettingsOpen(false);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setResettingData(false);
+    }
+  }
+
   if (!token) {
     if (checkingAuth) {
       return (
@@ -455,6 +469,8 @@ export default function RekapanPage() {
         entryTierTengahPercent={settings ? settings.entryTierTengahPercent : 30}
         onSave={saveSettings}
         saving={settingsSaving}
+        onResetData={resetData}
+        resetting={resettingData}
       />
 
       <div className="hero-row">
