@@ -6,7 +6,7 @@ import {
 } from '../lib/sheets';
 import { computeCalculator } from '../lib/calculator';
 import { parseHargaInput } from '../lib/journalInput';
-import { formatRupiah, todayDDMMYYYY } from '../lib/format';
+import { formatRupiah, todayDDMMYYYY, formatDigitsAsThousands } from '../lib/format';
 
 export default function KalkulatorPage() {
   const [token, setToken] = useState(null);
@@ -201,22 +201,38 @@ export default function KalkulatorPage() {
         </div>
         <div className="field">
           <label className="field-label">Harga Entry</label>
-          <input type="number" value={entryInput} onChange={(e) => { setEntryInput(e.target.value); clearResult(); }} />
+          <input
+            type="text"
+            inputMode="numeric"
+            value={formatDigitsAsThousands(entryInput)}
+            onChange={(e) => { setEntryInput(e.target.value.replace(/\D/g, '')); clearResult(); }}
+          />
         </div>
         <div className="field">
           <label className="field-label">Harga TP</label>
-          <input type="number" value={tpInput} onChange={(e) => { setTpInput(e.target.value); clearResult(); }} />
+          <input
+            type="text"
+            inputMode="numeric"
+            value={formatDigitsAsThousands(tpInput)}
+            onChange={(e) => { setTpInput(e.target.value.replace(/\D/g, '')); clearResult(); }}
+          />
         </div>
         <div className="field">
           <label className="field-label">Harga SL</label>
-          <input type="number" value={slInput} onChange={(e) => { setSlInput(e.target.value); clearResult(); }} />
+          <input
+            type="text"
+            inputMode="numeric"
+            value={formatDigitsAsThousands(slInput)}
+            onChange={(e) => { setSlInput(e.target.value.replace(/\D/g, '')); clearResult(); }}
+          />
         </div>
         <div className="field">
           <label className="field-label">Maks Kerugian (Rp)</label>
           <input
-            type="number"
-            value={maksKerugianInput}
-            onChange={(e) => { setMaksKerugianInput(e.target.value); clearResult(); }}
+            type="text"
+            inputMode="numeric"
+            value={formatDigitsAsThousands(maksKerugianInput)}
+            onChange={(e) => { setMaksKerugianInput(e.target.value.replace(/\D/g, '')); clearResult(); }}
           />
           <p className="field-hint">
             Rupiah maksimal yang mau dirisikokan kalau harga kena SL - dari sini jumlah lot dihitung otomatis.
