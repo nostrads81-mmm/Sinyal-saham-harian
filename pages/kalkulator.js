@@ -88,9 +88,17 @@ export default function KalkulatorPage() {
     return { entry: entry.value, sl: sl.value, tp: tp.value, maksKerugian: maksKerugian.value };
   }
 
-  function handleHitung() {
+  // Editing any input after a calculation invalidates both the shown result
+  // and any error message - without this, changing a field post-error left
+  // a now-stale "Maks kerugian terlalu kecil" message on screen even once
+  // the numbers no longer actually produced that error.
+  function clearResult() {
     setCalcError(null);
     setResult(null);
+  }
+
+  function handleHitung() {
+    clearResult();
     if (!settings) {
       setCalcError('Pengaturan belum selesai dimuat, coba lagi sebentar.');
       return;
@@ -193,19 +201,23 @@ export default function KalkulatorPage() {
         </div>
         <div className="field">
           <label className="field-label">Harga Entry</label>
-          <input type="number" value={entryInput} onChange={(e) => setEntryInput(e.target.value)} />
+          <input type="number" value={entryInput} onChange={(e) => { setEntryInput(e.target.value); clearResult(); }} />
         </div>
         <div className="field">
           <label className="field-label">Harga TP</label>
-          <input type="number" value={tpInput} onChange={(e) => setTpInput(e.target.value)} />
+          <input type="number" value={tpInput} onChange={(e) => { setTpInput(e.target.value); clearResult(); }} />
         </div>
         <div className="field">
           <label className="field-label">Harga SL</label>
-          <input type="number" value={slInput} onChange={(e) => setSlInput(e.target.value)} />
+          <input type="number" value={slInput} onChange={(e) => { setSlInput(e.target.value); clearResult(); }} />
         </div>
         <div className="field">
           <label className="field-label">Maks Kerugian (Rp)</label>
-          <input type="number" value={maksKerugianInput} onChange={(e) => setMaksKerugianInput(e.target.value)} />
+          <input
+            type="number"
+            value={maksKerugianInput}
+            onChange={(e) => { setMaksKerugianInput(e.target.value); clearResult(); }}
+          />
           <p className="field-hint">
             Rupiah maksimal yang mau dirisikokan kalau harga kena SL - dari sini jumlah lot dihitung otomatis.
           </p>
