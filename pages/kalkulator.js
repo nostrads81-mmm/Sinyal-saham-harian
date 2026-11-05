@@ -4,8 +4,7 @@ import {
   getOrCreateAppDataSheetId, ensureSheetsInitialized, getSettings,
   getCalculatorHistory, addCalculatorEntry, deleteCalculatorEntry,
 } from '../lib/sheets';
-import { computeCalculator } from '../lib/calculator';
-import { parseHargaInput } from '../lib/journalInput';
+import { computeCalculator, parseCalculatorInputs } from '../lib/calculator';
 import { formatRupiah, todayDDMMYYYY, formatDigitsAsThousands } from '../lib/format';
 
 export default function KalkulatorPage() {
@@ -74,20 +73,6 @@ export default function KalkulatorPage() {
     return () => { cancelled = true; };
   }, [token, refreshKey]);
 
-  function parseInputs() {
-    const entry = parseHargaInput(entryInput);
-    const sl = parseHargaInput(slInput);
-    const tp = parseHargaInput(tpInput);
-    const maksKerugian = parseHargaInput(maksKerugianInput);
-    if (entry.error || entry.value === null) return { error: entry.error || 'Entry wajib diisi' };
-    if (sl.error || sl.value === null) return { error: sl.error || 'SL wajib diisi' };
-    if (tp.error) return { error: tp.error };
-    if (maksKerugian.error || maksKerugian.value === null) {
-      return { error: maksKerugian.error || 'Maks kerugian wajib diisi' };
-    }
-    return { entry: entry.value, sl: sl.value, tp: tp.value, maksKerugian: maksKerugian.value };
-  }
-
   // Editing any input after a calculation invalidates both the shown result
   // and any error message - without this, changing a field post-error left
   // a now-stale "Maks kerugian terlalu kecil" message on screen even once
@@ -103,13 +88,11 @@ export default function KalkulatorPage() {
       setCalcError('Pengaturan belum selesai dimuat, coba lagi sebentar.');
       return;
     }
-    const parsed = parseInputs();
+    const parsed = parseCalculatorInputs({
+      entryInput, slInput, tpInput, maxLossInput: maksKerugianInput,
+    });
     if (parsed.error) {
       setCalcError(parsed.error);
-      return;
-    }
-    if (parsed.sl >= parsed.entry) {
-      setCalcError('SL harus lebih kecil dari Entry.');
       return;
     }
     const computed = computeCalculator(parsed, settings);
@@ -131,7 +114,7 @@ export default function KalkulatorPage() {
         entry: result.entry,
         sl: result.sl,
         tp: result.tp,
-        maksKerugian: result.maksKerugian,
+        maksKerugian: result.maxLoss,
         lot: result.lot,
         rupiahBeli: result.rupiahBeli,
         estimasiTp: result.tpEstimate?.pnlRp ?? null,
@@ -258,7 +241,7 @@ export default function KalkulatorPage() {
               </div>
               <div className="metric-cell">
                 <span className="metric-label">Risiko</span>
-                <div className="metric-value text-danger">{formatRupiah(result.maksKerugian)}</div>
+                <div className="metric-value text-danger">{formatRupiah(result.maxLoss)}</div>
               </div>
             </div>
             <p className="pb-row" style={{ marginTop: 8 }}>
