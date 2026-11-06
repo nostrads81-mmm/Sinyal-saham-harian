@@ -1,19 +1,28 @@
 import { useEffect, useState } from 'react';
 import { getAccessToken, resolveInitialToken } from '../lib/auth';
 import {
-  getOrCreateAppDataSheetId, ensureSheetsInitialized, getSettings,
+  getOrCreateAppDataSheetId, ensureSheetsInitialized, getSettings, getDefaultSettings,
   getCalculatorHistory, addCalculatorEntry, deleteCalculatorEntry,
 } from '../lib/sheets';
+import {
+  getLocalCalculatorHistory, addLocalCalculatorEntry, deleteLocalCalculatorEntry,
+} from '../lib/calculatorLocalHistory';
 import { computeCalculator, parseCalculatorInputs } from '../lib/calculator';
 import { formatRupiah, todayDDMMYYYY, formatDigitsAsThousands } from '../lib/format';
 
+// Unlike Sinyal/Rekapan/Watchlist, Kalkulator needs no account data at all
+// to do its one job (turn an entry/SL/TP/max-loss into a lot count) - the
+// fee/materai figures it uses for the TP/SL estimate are just Settings'
+// stock defaults until/unless the user is signed in. Gating the whole page
+// behind sign-in the way the other tabs do would make it useless to
+// someone who just wants a quick position-size check.
 export default function KalkulatorPage() {
   const [token, setToken] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [error, setError] = useState(null);
   const [sheetId, setSheetId] = useState(null);
-  const [settings, setSettings] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [settings, setSettings] = useState(getDefaultSettings());
+  const [history, setHistory] = useState(getLocalCalculatorHistory());
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [simbolInput, setSimbolInput] = useState('');
@@ -50,7 +59,15 @@ export default function KalkulatorPage() {
   }
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      // Not signed in (or signed out again): fall back to local
+      // history/stock-default fees rather than leaving stale signed-in
+      // state on screen.
+      setSheetId(null);
+      setSettings(getDefaultSettings());
+      setHistory(getLocalCalculatorHistory());
+      return;
+    }
     let cancelled = false;
     setError(null);
     (async () => {
@@ -84,10 +101,6 @@ export default function KalkulatorPage() {
 
   function handleHitung() {
     clearResult();
-    if (!settings) {
-      setCalcError('Pengaturan belum selesai dimuat, coba lagi sebentar.');
-      return;
-    }
     const parsed = parseCalculatorInputs({
       entryInput, slInput, tpInput, maxLossInput: maksKerugianInput,
     });
@@ -105,21 +118,27 @@ export default function KalkulatorPage() {
 
   async function handleSimpan() {
     if (!result) return;
+    const entry = {
+      tanggal: `'${todayDDMMYYYY()}`,
+      simbol: simbolInput.trim().toUpperCase() || '-',
+      entry: result.entry,
+      sl: result.sl,
+      tp: result.tp,
+      maksKerugian: result.maxLoss,
+      lot: result.lot,
+      rupiahBeli: result.rupiahBeli,
+      estimasiTp: result.tpEstimate?.pnlRp ?? null,
+      estimasiSl: result.slEstimate?.pnlRp ?? null,
+    };
+    if (!token) {
+      addLocalCalculatorEntry(entry);
+      setHistory(getLocalCalculatorHistory());
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      await addCalculatorEntry(token, sheetId, {
-        tanggal: `'${todayDDMMYYYY()}`,
-        simbol: simbolInput.trim().toUpperCase() || '-',
-        entry: result.entry,
-        sl: result.sl,
-        tp: result.tp,
-        maksKerugian: result.maxLoss,
-        lot: result.lot,
-        rupiahBeli: result.rupiahBeli,
-        estimasiTp: result.tpEstimate?.pnlRp ?? null,
-        estimasiSl: result.slEstimate?.pnlRp ?? null,
-      });
+      await addCalculatorEntry(token, sheetId, entry);
       setRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e.message);
@@ -130,6 +149,11 @@ export default function KalkulatorPage() {
 
   async function handleDeleteHistory(row) {
     if (!window.confirm(`Hapus riwayat ${row.simbol} dari ${row.tanggal.replace(/^'/, '')}?`)) return;
+    if (!token) {
+      deleteLocalCalculatorEntry(row.rowNumber);
+      setHistory(getLocalCalculatorHistory());
+      return;
+    }
     setDeletingRow(row.rowNumber);
     try {
       await deleteCalculatorEntry(token, sheetId, row.rowNumber);
@@ -141,26 +165,6 @@ export default function KalkulatorPage() {
     }
   }
 
-  if (!token) {
-    if (checkingAuth) {
-      return (
-        <div className="center-box">
-          <div className="login-icon">🧮</div>
-          <p className="muted">Memeriksa sesi Google...</p>
-        </div>
-      );
-    }
-    return (
-      <div className="center-box">
-        <div className="login-icon">🧮</div>
-        <h1 className="login-title">Kalkulator</h1>
-        <p className="login-sub">Masuk dengan akun Google untuk pakai kalkulator posisi.</p>
-        <button className="btn btn-primary login-btn" onClick={handleSignIn}>Sign in dengan Google</button>
-        {error && <p className="muted text-danger" style={{ marginTop: 12 }}>{error}</p>}
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="page-header card-row">
@@ -169,6 +173,16 @@ export default function KalkulatorPage() {
           <p className="page-sub">Hitung lot &amp; nilai posisi dari batas maks kerugian</p>
         </div>
       </div>
+
+      {!checkingAuth && !token && (
+        <p className="field-hint" style={{ marginBottom: 12 }}>
+          Bisa dipakai tanpa masuk - riwayat yang disimpan cuma tersimpan di perangkat ini.{' '}
+          <button type="button" className="btn" style={{ padding: '2px 8px', marginLeft: 4 }} onClick={handleSignIn}>
+            Sign in dengan Google
+          </button>{' '}
+          untuk riwayat yang tersinkron ke semua perangkat.
+        </p>
+      )}
 
       {error && <p className="muted text-danger">{error}</p>}
 
