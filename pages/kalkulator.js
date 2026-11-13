@@ -7,7 +7,7 @@ import {
 import {
   getLocalCalculatorHistory, addLocalCalculatorEntry, deleteLocalCalculatorEntry,
 } from '../lib/calculatorLocalHistory';
-import { computeCalculator, parseCalculatorInputs } from '../lib/calculator';
+import { computeCalculator, parseCalculatorInputs, suggestEntryForRatio } from '../lib/calculator';
 import { formatRupiah, todayDDMMYYYY, formatDigitsAsThousands } from '../lib/format';
 
 // Unlike Sinyal/Rekapan/Watchlist, Kalkulator needs no account data at all
@@ -32,6 +32,11 @@ export default function KalkulatorPage() {
   const [maksKerugianInput, setMaksKerugianInput] = useState('');
   const [result, setResult] = useState(null);
   const [calcError, setCalcError] = useState(null);
+  // "5" here means "1:5" (risk:reward) - a separate field from the main
+  // form so changing it doesn't trigger a recalculation of the actual
+  // result, just the "kalau mau rasio segini, entry-nya harus..." hint
+  // below it.
+  const [ratioInput, setRatioInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingRow, setDeletingRow] = useState(null);
   // Riwayat stays hidden by default, same as "Sudah terjual" di Rekapan -
@@ -272,6 +277,42 @@ export default function KalkulatorPage() {
                 {result.slEstimate.pnlRp >= 0 ? '+' : ''}{formatRupiah(result.slEstimate.pnlRp)}
               </span>
             </p>
+            <p className="pb-row" style={{ marginTop: 4 }}>
+              <span className="muted">Rasio Risk:Reward</span>
+              <span>{result.ratio != null ? `1 : ${result.ratio.toFixed(2)}` : '- (TP tidak diisi)'}</span>
+            </p>
+
+            {result.tp != null && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                <label className="field-label">Mau Rasio Berapa? (1 : X)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="mis. 5"
+                  value={ratioInput}
+                  onChange={(e) => setRatioInput(e.target.value.replace(/[^\d.]/g, ''))}
+                />
+                <p className="field-hint">
+                  {(() => {
+                    const desiredRatio = Number(ratioInput);
+                    if (!ratioInput || !Number.isFinite(desiredRatio) || desiredRatio <= 0) {
+                      return 'Isi angka rasio yang diinginkan - TP dan SL tidak berubah, cuma Entry-nya yang disarankan beda.';
+                    }
+                    const suggestedEntry = suggestEntryForRatio(result.sl, result.tp, desiredRatio);
+                    if (!suggestedEntry) {
+                      return 'Rasio ini tidak bisa dicapai dengan TP/SL saat ini.';
+                    }
+                    return (
+                      <>
+                        Supaya jadi 1:{ratioInput} tanpa ubah TP/SL, Entry-nya sekitar{' '}
+                        <strong>{Math.round(suggestedEntry).toLocaleString('id-ID')}</strong>.
+                      </>
+                    );
+                  })()}
+                </p>
+              </div>
+            )}
+
             <button
               type="button"
               className="btn"
