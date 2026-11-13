@@ -292,24 +292,28 @@ export default function KalkulatorPage() {
                   value={ratioInput}
                   onChange={(e) => setRatioInput(e.target.value.replace(/[^\d.]/g, ''))}
                 />
-                <p className="field-hint">
-                  {(() => {
-                    const desiredRatio = Number(ratioInput);
-                    if (!ratioInput || !Number.isFinite(desiredRatio) || desiredRatio <= 0) {
-                      return 'Isi angka rasio yang diinginkan - TP dan SL tidak berubah, cuma Entry-nya yang disarankan beda.';
-                    }
-                    const suggestedEntry = suggestEntryForRatio(result.sl, result.tp, desiredRatio);
-                    if (!suggestedEntry) {
-                      return 'Rasio ini tidak bisa dicapai dengan TP/SL saat ini.';
-                    }
+                {(() => {
+                  const desiredRatio = Number(ratioInput);
+                  if (!ratioInput || !Number.isFinite(desiredRatio) || desiredRatio <= 0) {
                     return (
-                      <>
-                        Supaya jadi 1:{ratioInput} tanpa ubah TP/SL, Entry-nya sekitar{' '}
-                        <strong>{Math.round(suggestedEntry).toLocaleString('id-ID')}</strong>.
-                      </>
+                      <p className="field-hint">
+                        Isi angka rasio yang diinginkan - TP dan SL tidak berubah, cuma Entry-nya yang disarankan beda.
+                      </p>
                     );
-                  })()}
-                </p>
+                  }
+                  const suggestedEntry = suggestEntryForRatio(result.sl, result.tp, desiredRatio);
+                  if (!suggestedEntry) {
+                    return <p className="field-hint">Rasio ini tidak bisa dicapai dengan TP/SL saat ini.</p>;
+                  }
+                  return (
+                    <p style={{ fontSize: 'calc(15px * var(--text-scale))', marginTop: 8, lineHeight: 1.4 }}>
+                      Supaya jadi 1:{ratioInput} tanpa ubah TP/SL, Entry-nya sekitar{' '}
+                      <strong style={{ fontSize: 'calc(19px * var(--text-scale))' }}>
+                        {Math.round(suggestedEntry).toLocaleString('id-ID')}
+                      </strong>.
+                    </p>
+                  );
+                })()}
               </div>
             )}
 
