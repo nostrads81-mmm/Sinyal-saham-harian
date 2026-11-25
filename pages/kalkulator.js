@@ -7,7 +7,9 @@ import {
 import {
   getLocalCalculatorHistory, addLocalCalculatorEntry, deleteLocalCalculatorEntry,
 } from '../lib/calculatorLocalHistory';
-import { computeCalculator, parseCalculatorInputs, suggestEntryForRatio } from '../lib/calculator';
+import {
+  computeCalculator, parseCalculatorInputs, suggestEntryForRatio, suggestTpForRatio,
+} from '../lib/calculator';
 import { formatRupiah, todayDDMMYYYY, formatDigitsAsThousands } from '../lib/format';
 
 // Unlike Sinyal/Rekapan/Watchlist, Kalkulator needs no account data at all
@@ -286,40 +288,59 @@ export default function KalkulatorPage() {
               <span>{result.netRatio != null ? `1 : ${result.netRatio.toFixed(2)}` : '- (TP tidak diisi)'}</span>
             </p>
 
-            {result.tp != null && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-                <label className="field-label">Mau Rasio Berapa? (1 : X)</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="mis. 5"
-                  value={ratioInput}
-                  onChange={(e) => setRatioInput(e.target.value.replace(/[^\d.]/g, ''))}
-                />
-                {(() => {
-                  const desiredRatio = Number(ratioInput);
-                  if (!ratioInput || !Number.isFinite(desiredRatio) || desiredRatio <= 0) {
-                    return (
-                      <p className="field-hint">
-                        Isi angka rasio yang diinginkan - TP dan SL tidak berubah, cuma Entry-nya yang disarankan beda.
-                      </p>
-                    );
-                  }
-                  const suggestedEntry = suggestEntryForRatio(result.sl, result.tp, desiredRatio);
-                  if (!suggestedEntry) {
-                    return <p className="field-hint">Rasio ini tidak bisa dicapai dengan TP/SL saat ini.</p>;
-                  }
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+              <label className="field-label">Mau Rasio Berapa? (1 : X)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="mis. 5"
+                value={ratioInput}
+                onChange={(e) => setRatioInput(e.target.value.replace(/[^\d.]/g, ''))}
+              />
+              {(() => {
+                const desiredRatio = Number(ratioInput);
+                if (!ratioInput || !Number.isFinite(desiredRatio) || desiredRatio <= 0) {
                   return (
-                    <p style={{ fontSize: 'calc(15px * var(--text-scale))', marginTop: 8, lineHeight: 1.4 }}>
-                      Supaya jadi 1:{ratioInput} tanpa ubah TP/SL, Entry-nya sekitar{' '}
-                      <strong style={{ fontSize: 'calc(19px * var(--text-scale))' }}>
-                        {Math.round(suggestedEntry).toLocaleString('id-ID')}
-                      </strong>.
+                    <p className="field-hint">
+                      Isi angka rasio yang diinginkan - dua saran di bawah masing-masing cuma geser salah satu
+                      harga, yang lain tetap.
                     </p>
                   );
-                })()}
-              </div>
-            )}
+                }
+                // Two independent suggestions, not one "the" answer - each
+                // keeps a different pair of prices fixed, since moving
+                // Entry vs moving TP are different real-world decisions
+                // (re-plan the whole trade vs just set a farther target).
+                const suggestedEntry = result.tp != null
+                  ? suggestEntryForRatio(result.sl, result.tp, desiredRatio)
+                  : null;
+                const suggestedTp = suggestTpForRatio(result.entry, result.sl, desiredRatio);
+                return (
+                  <>
+                    {result.tp != null && (
+                      <p style={{ fontSize: 'calc(15px * var(--text-scale))', marginTop: 8, lineHeight: 1.4 }}>
+                        Kalau TP/SL tetap, Entry-nya sekitar{' '}
+                        {suggestedEntry ? (
+                          <strong style={{ fontSize: 'calc(19px * var(--text-scale))' }}>
+                            {Math.round(suggestedEntry).toLocaleString('id-ID')}
+                          </strong>
+                        ) : '- (rasio ini tidak bisa dicapai dengan TP/SL saat ini)'}
+                        .
+                      </p>
+                    )}
+                    <p style={{ fontSize: 'calc(15px * var(--text-scale))', marginTop: 8, lineHeight: 1.4 }}>
+                      Kalau Entry/SL tetap, TP-nya sekitar{' '}
+                      {suggestedTp ? (
+                        <strong style={{ fontSize: 'calc(19px * var(--text-scale))' }}>
+                          {Math.round(suggestedTp).toLocaleString('id-ID')}
+                        </strong>
+                      ) : '- (rasio ini tidak bisa dicapai dengan Entry/SL saat ini)'}
+                      .
+                    </p>
+                  </>
+                );
+              })()}
+            </div>
 
             <button
               type="button"
