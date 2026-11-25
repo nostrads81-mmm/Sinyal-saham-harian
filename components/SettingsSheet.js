@@ -42,7 +42,7 @@ function riskDisplayToFraction(display) {
 
 export default function SettingsSheet({
   open, onClose, capital, riskPercent, maxSlots,
-  buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold,
+  buyFeePercent, sellFeePercent,
   entryMode, tpMode, onSave, saving,
   modalHistory, onSubmitModalTransaction,
   entryTierAtasPercent, entryTierTengahPercent,
@@ -53,8 +53,6 @@ export default function SettingsSheet({
   const [slotsInput, setSlotsInput] = useState(String(maxSlots));
   const [buyFeeInput, setBuyFeeInput] = useState(riskFractionToDisplay(buyFeePercent));
   const [sellFeeInput, setSellFeeInput] = useState(riskFractionToDisplay(sellFeePercent));
-  const [materaiInput, setMateraiInput] = useState(String(materaiAmount));
-  const [materaiThresholdInput, setMateraiThresholdInput] = useState(String(materaiThreshold));
   const [entryModeInput, setEntryModeInput] = useState('mid');
   const [tpModeInput, setTpModeInput] = useState('mid');
   const [tierAtasInput, setTierAtasInput] = useState(String(entryTierAtasPercent ?? 30));
@@ -73,8 +71,6 @@ export default function SettingsSheet({
       setSlotsInput(String(maxSlots));
       setBuyFeeInput(riskFractionToDisplay(buyFeePercent));
       setSellFeeInput(riskFractionToDisplay(sellFeePercent));
-      setMateraiInput(String(materaiAmount));
-      setMateraiThresholdInput(String(materaiThreshold));
       setEntryModeInput(entryMode || 'mid');
       setTpModeInput(tpMode || 'mid');
       setTierAtasInput(String(entryTierAtasPercent ?? 30));
@@ -85,7 +81,7 @@ export default function SettingsSheet({
     }
   }, [
     open, capital, riskPercent, maxSlots,
-    buyFeePercent, sellFeePercent, materaiAmount, materaiThreshold, entryMode, tpMode,
+    buyFeePercent, sellFeePercent, entryMode, tpMode,
     entryTierAtasPercent, entryTierTengahPercent,
   ]);
 
@@ -315,7 +311,7 @@ export default function SettingsSheet({
         </div>
 
         <div className="settings-section">
-          <p className="settings-section-title">🧾 Biaya &amp; Materai</p>
+          <p className="settings-section-title">🧾 Biaya</p>
           <div className="field">
             <label className="field-label">Fee beli (%)</label>
             <input
@@ -341,30 +337,9 @@ export default function SettingsSheet({
               value={sellFeeInput}
               onChange={(e) => setSellFeeInput(e.target.value)}
             />
-          </div>
-
-          <div className="field">
-            <label className="field-label">Materai per tiap sisi (Rp)</label>
-            <input
-              type="number"
-              min="0"
-              inputMode="numeric"
-              value={materaiInput}
-              onChange={(e) => setMateraiInput(e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <label className="field-label">Batas kena materai (Rp)</label>
-            <input
-              type="number"
-              min="0"
-              inputMode="numeric"
-              value={materaiThresholdInput}
-              onChange={(e) => setMateraiThresholdInput(e.target.value)}
-            />
             <p className="field-hint">
-              Materai kena tiap sisi saja kalau nilai transaksi melebihi batas ini.
+              Tidak ada materai terpisah - fee jual di Stockbit sudah mencakup komisi broker + PPh final,
+              sesuai bukti transaksi riil.
             </p>
           </div>
         </div>
@@ -470,8 +445,6 @@ export default function SettingsSheet({
                 maxSlots: Number(slotsInput) || maxSlots,
                 buyFeePercent: riskDisplayToFraction(buyFeeInput) ?? buyFeePercent,
                 sellFeePercent: riskDisplayToFraction(sellFeeInput) ?? sellFeePercent,
-                materaiAmount: Number(materaiInput) || materaiAmount,
-                materaiThreshold: Number(materaiThresholdInput) || materaiThreshold,
                 entryMode: entryModeInput,
                 tpMode: tpModeInput,
                 entryTierAtasPercent: atas,

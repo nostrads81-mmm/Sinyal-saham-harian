@@ -441,7 +441,7 @@ export default function RekapanPage() {
       <div className="page-header card-row">
         <div>
           <h1 className="page-title">Rekapan</h1>
-          <p className="page-sub">Jurnal day trade &middot; P&amp;L sudah dikurangi fee &amp; materai</p>
+          <p className="page-sub">Jurnal day trade &middot; P&amp;L sudah dikurangi fee</p>
         </div>
         <button
           className="btn icon-btn"
@@ -672,7 +672,7 @@ export default function RekapanPage() {
                     </p>
                     {net && !net.estimated && (
                       <p className={`muted ${net.pnlRp >= 0 ? 'text-success' : 'text-danger'}`} style={{ marginTop: 2 }}>
-                        {net.pnlRp >= 0 ? '+' : ''}{formatRupiah(net.pnlRp)} bersih (sudah dikurangi fee &amp; materai)
+                        {net.pnlRp >= 0 ? '+' : ''}{formatRupiah(net.pnlRp)} bersih (sudah dikurangi fee)
                       </p>
                     )}
                     <p className="muted" style={{ marginTop: 2 }}>

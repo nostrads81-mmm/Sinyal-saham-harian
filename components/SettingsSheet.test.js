@@ -51,11 +51,11 @@ describe('SettingsSheet', () => {
     const html = render();
 
     expect(html).toContain('Modal &amp; Risiko');
-    expect(html).toContain('Biaya &amp; Materai');
+    expect(html).toContain('🧾 Biaya');
     expect(html).toContain('Tampilan');
     expect(html).toContain('Modal Awal');
     expect(html).toContain('Fee beli (%)');
-    expect(html).toContain('Batas kena materai (Rp)');
+    expect(html).not.toContain('Batas kena materai');
     expect(html).toContain('DCA');
     expect(html).toContain('Simpan');
     expect(html).toContain('Batal');

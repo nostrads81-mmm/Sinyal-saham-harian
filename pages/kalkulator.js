@@ -12,7 +12,7 @@ import { formatRupiah, todayDDMMYYYY, formatDigitsAsThousands } from '../lib/for
 
 // Unlike Sinyal/Rekapan/Watchlist, Kalkulator needs no account data at all
 // to do its one job (turn an entry/SL/TP/max-loss into a lot count) - the
-// fee/materai figures it uses for the TP/SL estimate are just Settings'
+// fee figures it uses for the TP/SL estimate are just Settings'
 // stock defaults until/unless the user is signed in. Gating the whole page
 // behind sign-in the way the other tabs do would make it useless to
 // someone who just wants a quick position-size check.
