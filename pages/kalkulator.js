@@ -278,8 +278,12 @@ export default function KalkulatorPage() {
               </span>
             </p>
             <p className="pb-row" style={{ marginTop: 4 }}>
-              <span className="muted">Rasio Risk:Reward</span>
+              <span className="muted">Rasio (harga)</span>
               <span>{result.ratio != null ? `1 : ${result.ratio.toFixed(2)}` : '- (TP tidak diisi)'}</span>
+            </p>
+            <p className="pb-row" style={{ marginTop: 4 }}>
+              <span className="muted">Rasio riil (net, setelah fee)</span>
+              <span>{result.netRatio != null ? `1 : ${result.netRatio.toFixed(2)}` : '- (TP tidak diisi)'}</span>
             </p>
 
             {result.tp != null && (
